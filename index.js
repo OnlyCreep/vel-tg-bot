@@ -28,24 +28,29 @@ let userSessions = {};
 // Команда /start
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    userSessions[chatId] = {}; // Очищаем предыдущую сессию
-    bot.sendMessage(chatId, "Выберите команду:", {
+    
+    // Сбрасываем всю предыдущую историю
+    userSessions[chatId] = {}; 
+
+    // Отправляем приветственное сообщение
+    bot.sendMessage(chatId, "🎉 Добро пожаловать! Я помогу рассчитать стоимость мероприятия. \n\nВыберите команду:", {
         reply_markup: { keyboard: [["/survey"]], one_time_keyboard: true }
+    }).then(() => {
+        bot.sendMessage(chatId, "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования, поэтому стоимость будет включать эти позиции.\n\n(Ведущий+DJ+Оборудование)");
     });
 });
 
 // Команда /survey — начало опроса
 bot.onText(/\/survey/, (msg) => {
     const chatId = msg.chat.id;
-    userSessions[chatId] = {}; // Очищаем предыдущую сессию
-
-    bot.sendMessage(chatId, "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования, поэтому стоимость будет включать эти позиции.\n\n(Ведущий+DJ+Оборудование)", {
-        reply_markup: { remove_keyboard: true }
-    }).then(() => {
-        askDate(chatId);
-    });
+    
+    // Очищаем сессию перед новым опросом
+    userSessions[chatId] = {}; 
+    
+    askDate(chatId);
 });
 
+// Начало опроса — первый вопрос
 function askDate(chatId) {
     bot.sendMessage(chatId, "📅 Введите дату мероприятия:", { reply_markup: { force_reply: true } });
 }
@@ -84,9 +89,6 @@ bot.on('message', (msg) => {
             });
         }
         session.location = text;
-        askVenue(chatId);
-    } else if (!session.venue) {
-        session.venue = text;
         askHours(chatId);
     } else if (!session.hours) {
         const hours = parseInt(text);
@@ -102,20 +104,6 @@ bot.on('message', (msg) => {
             });
         }
         session.budget = text;
-        askImage(chatId);
-    } else if (!session.image) {
-        if (!imageOptions.includes(text)) {
-            return bot.sendMessage(chatId, "🚨 Выберите изображение:", {
-                reply_markup: { keyboard: [imageOptions], one_time_keyboard: true }
-            });
-        }
-        session.image = text;
-        askWords(chatId);
-    } else if (!session.words) {
-        session.words = text;
-        askExtras(chatId);
-    } else if (!session.extras) {
-        session.extras = text;
         sendSummary(chatId);
     }
 });
@@ -138,10 +126,6 @@ function askLocation(chatId) {
     });
 }
 
-function askVenue(chatId) {
-    bot.sendMessage(chatId, "🏢 Заведение/площадка (если выбрано):");
-}
-
 function askHours(chatId) {
     bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие? Введите число.");
 }
@@ -152,55 +136,14 @@ function askBudget(chatId) {
     });
 }
 
-function askImage(chatId) {
-    bot.sendMessage(chatId, "📷 Выберите картинку по душе:", {
-        reply_markup: { keyboard: [imageOptions], one_time_keyboard: true }
-    });
-}
-
-function askWords(chatId) {
-    bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
-}
-
-function askExtras(chatId) {
-    bot.sendMessage(chatId, "🎭 Интересуют ли комплексные решения с привлечением артистов?");
-}
-
 function sendSummary(chatId) {
     const session = userSessions[chatId];
 
-    // Базовая стоимость в зависимости от сезона и дня недели
-    let basePrice = 14000; // Предположим, что по умолчанию пт-сб
-
-    if (session.date) {
-        const date = new Date(session.date);
-        const month = date.getMonth() + 1; // Январь - 1, Декабрь - 12
-        const dayOfWeek = date.getDay(); // Воскресенье - 0, Суббота - 6
-
-        if ((month >= 1 && month <= 5) || (month >= 9 && month <= 11)) {
-            basePrice = (dayOfWeek >= 5) ? 14000 : 11000; // Пт-Сб - 14к, Вс-Чт - 11к
-        } else if (month === 6 || month === 7 || month === 8) {
-            basePrice = (dayOfWeek >= 5) ? 15000 : 14000; // Пт-Сб - 15к, Вс-Чт - 14к
-        } else if (month === 12) {
-            basePrice = (date.getDate() < 15) ? 14000 : 15000; // До 14.12 - 14к, после - 15к
-        }
-    }
-
-    // Коррекция стоимости по количеству гостей
+    let basePrice = 14000;
     const guestFactor = guestMultiplier[session.guests] || 1;
-
-    // Коррекция стоимости по местоположению
-    let locationCost = 0;
-    if (session.location === "Пригород (до 30 км)") {
-        locationCost = 5000;
-    } else if (session.location === "Другое") {
-        locationCost = basePrice * 0.5; // Повышающий коэффициент *1.5
-    }
-
-    // Финальный расчет
+    let locationCost = session.location === "Пригород (до 30 км)" ? 5000 : (session.location === "Другое" ? basePrice * 0.5 : 0);
     const totalPrice = (basePrice * guestFactor * session.hours) + locationCost;
 
-    // Отправляем расчет клиенту
     bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наше время и нервы, поэтому стоимость максимально приближенная, но все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`);
 
     bot.sendMessage(chatId, `🎁 Люблю делать подарки. При бронировании даты в течение суток, можно выбрать 🎁:\n1) Доп. час работы диджея\n2) 1.5 часа работы фотографа\n3) 1.5 часа работы рилсмейкера (вертикальные видео).`);
