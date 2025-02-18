@@ -21,7 +21,6 @@ const eventOptions = ["Корпоратив", "Свадьба", "Выпускн�
 const guestOptions = ["До 50", "50-75", "76-100", "101-150", "151-200", "200-300"];
 const locationOptions = ["Новосибирск", "Пригород (до 30 км)", "Другое"];
 const budgetOptions = ["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"];
-const imageOptions = ["📷 Картинка 1", "📷 Картинка 2", "📷 Картинка 3"];
 
 let userSessions = {};
 
@@ -29,11 +28,11 @@ let userSessions = {};
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     
-    // Сбрасываем всю предыдущую историю
+    // Очищаем сессию перед началом работы
     userSessions[chatId] = {}; 
 
     // Отправляем приветственное сообщение
-    bot.sendMessage(chatId, "🎉 Добро пожаловать! Я помогу рассчитать стоимость мероприятия. \n\nВыберите команду:", {
+    bot.sendMessage(chatId, "🎉 Добро пожаловать! Я помогу рассчитать стоимость мероприятия.\n\nВыберите команду:", {
         reply_markup: { keyboard: [["/survey"]], one_time_keyboard: true }
     }).then(() => {
         bot.sendMessage(chatId, "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования, поэтому стоимость будет включать эти позиции.\n\n(Ведущий+DJ+Оборудование)");
@@ -44,16 +43,19 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/survey/, (msg) => {
     const chatId = msg.chat.id;
     
-    // Очищаем сессию перед новым опросом
+    // Очищаем сессию перед началом нового опроса
     userSessions[chatId] = {}; 
+    
+    // Начинаем опрос с вопроса о дате
+    askDate(chatId);
 });
 
-// Начало опроса — первый вопрос
+// Вопрос о дате (без вариантов выбора, просто текстовый ввод)
 function askDate(chatId) {
     bot.sendMessage(chatId, "📅 Введите дату мероприятия:", { reply_markup: { force_reply: true } });
 }
 
-// Обработчик сообщений после старта опроса
+// Обработчик всех ответов
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     if (!userSessions[chatId]) return;
@@ -66,7 +68,7 @@ bot.on('message', (msg) => {
         askEvent(chatId);
     } else if (!session.event) {
         if (!eventOptions.includes(text)) {
-            return bot.sendMessage(chatId, "🚨 Пожалуйста, выберите один из предложенных вариантов:", {
+            return bot.sendMessage(chatId, "🚨 Выберите один из предложенных вариантов:", {
                 reply_markup: { keyboard: [eventOptions.slice(0, 2), eventOptions.slice(2, 4), eventOptions.slice(4)], one_time_keyboard: true }
             });
         }
@@ -74,7 +76,7 @@ bot.on('message', (msg) => {
         askGuests(chatId);
     } else if (!session.guests) {
         if (!guestOptions.includes(text)) {
-            return bot.sendMessage(chatId, "🚨 Пожалуйста, выберите количество гостей:", {
+            return bot.sendMessage(chatId, "🚨 Выберите количество гостей:", {
                 reply_markup: { keyboard: [guestOptions.slice(0, 2), guestOptions.slice(2, 4), guestOptions.slice(4)], one_time_keyboard: true }
             });
         }
@@ -82,7 +84,7 @@ bot.on('message', (msg) => {
         askLocation(chatId);
     } else if (!session.location) {
         if (!locationOptions.includes(text)) {
-            return bot.sendMessage(chatId, "🚨 Пожалуйста, выберите одно из предложенных мест:", {
+            return bot.sendMessage(chatId, "🚨 Выберите одно из предложенных мест:", {
                 reply_markup: { keyboard: [locationOptions], one_time_keyboard: true }
             });
         }
@@ -91,13 +93,13 @@ bot.on('message', (msg) => {
     } else if (!session.hours) {
         const hours = parseInt(text);
         if (isNaN(hours) || hours <= 0) {
-            return bot.sendMessage(chatId, "🚨 Введите корректное количество часов (число).");
+            return bot.sendMessage(chatId, "🚨 Введите корректное количество часов (только число).");
         }
         session.hours = hours;
         askBudget(chatId);
     } else if (!session.budget) {
         if (!budgetOptions.includes(text)) {
-            return bot.sendMessage(chatId, "🚨 Пожалуйста, выберите диапазон стоимости:", {
+            return bot.sendMessage(chatId, "🚨 Выберите диапазон стоимости:", {
                 reply_markup: { keyboard: [budgetOptions.slice(0, 2), budgetOptions.slice(2, 4), budgetOptions.slice(4)], one_time_keyboard: true }
             });
         }
@@ -113,23 +115,23 @@ function askEvent(chatId) {
 }
 
 function askGuests(chatId) {
-    bot.sendMessage(chatId, "👥 Сколько гостей?", {
+    bot.sendMessage(chatId, "👥 Сколько гостей? (Выберите один из предложенных вариантов)", {
         reply_markup: { keyboard: [guestOptions.slice(0, 2), guestOptions.slice(2, 4), guestOptions.slice(4)], one_time_keyboard: true }
     });
 }
 
 function askLocation(chatId) {
-    bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
+    bot.sendMessage(chatId, "📍 Где пройдет мероприятие? (Выберите один из предложенных вариантов)", {
         reply_markup: { keyboard: [locationOptions], one_time_keyboard: true }
     });
 }
 
 function askHours(chatId) {
-    bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие? Введите число.");
+    bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие? (Введите число)");
 }
 
 function askBudget(chatId) {
-    bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной?", {
+    bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной? (Выберите один из предложенных вариантов)", {
         reply_markup: { keyboard: [budgetOptions.slice(0, 2), budgetOptions.slice(2, 4), budgetOptions.slice(4)], one_time_keyboard: true }
     });
 }
