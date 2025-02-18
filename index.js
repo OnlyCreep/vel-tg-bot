@@ -46,8 +46,6 @@ bot.onText(/\/survey/, (msg) => {
     
     // Очищаем сессию перед новым опросом
     userSessions[chatId] = {}; 
-    
-    askDate(chatId);
 });
 
 // Начало опроса — первый вопрос
