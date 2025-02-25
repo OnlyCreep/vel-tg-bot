@@ -5,6 +5,7 @@ const bot = new TelegramBot(token, { polling: true });
 const adminChatId = 1032236389;
 
 const guestOptions = ["До 50", "50-75", "76-100", "101-150", "151-200", "Более 200"];
+const eventOptions = ["Корпоратив", "Свадьба", "Выпускной", "День рождения", "Обучение/Тимбилдинг", "Другое"];
 const locationOptions = ["Новосибирск", "Пригород (до 30 км)", "Другое"];
 const budgetOptions = ["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"];
 
@@ -56,6 +57,7 @@ bot.on("message", (msg) => {
     session.date = text;
     askEvent(chatId);
   } else if (!session.event) {
+    if (!eventOptions.includes(text)) return askEvent(chatId, true);
     session.event = text;
     askGuests(chatId);
   } else if (!session.guests) {
@@ -67,6 +69,7 @@ bot.on("message", (msg) => {
     session.location = text;
     askHours(chatId);
   } else if (!session.hours) {
+    if (isNaN(text) || parseInt(text) <= 0) return bot.sendMessage(chatId, "⛔ Введите корректное количество часов цифрами!");
     session.hours = parseInt(text);
     askBudget(chatId);
   } else if (!session.budget) {
@@ -79,10 +82,10 @@ bot.on("message", (msg) => {
   }
 });
 
-function askEvent(chatId) {
-  bot.sendMessage(chatId, "🎉 Какое событие?", {
+function askEvent(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "🎉 Какое событие?", {
     reply_markup: {
-      keyboard: [["Корпоратив", "Свадьба"], ["Выпускной", "День рождения"], ["Обучение/Тимбилдинг", "Другое"]],
+      keyboard: eventOptions.map(opt => [opt]),
       one_time_keyboard: true,
     },
   });
