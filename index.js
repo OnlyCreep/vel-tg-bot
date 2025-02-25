@@ -4,6 +4,10 @@ const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = 1032236389;
 
+const guestOptions = ["До 50", "50-75", "76-100", "101-150", "151-200", "Более 200"];
+const locationOptions = ["Новосибирск", "Пригород (до 30 км)", "Другое"];
+const budgetOptions = ["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"];
+
 const guestMultiplier = {
   "До 50": 1,
   "50-75": 1.1,
@@ -14,9 +18,9 @@ const guestMultiplier = {
 };
 
 const locationExtra = {
-  Новосибирск: 0,
+  "Новосибирск": 0,
   "Пригород (до 30 км)": 5000,
-  Другое: 1.5,
+  "Другое": 1.5,
 };
 
 let userSessions = {};
@@ -46,26 +50,31 @@ bot.on("message", (msg) => {
   if (!userSessions[chatId]) return;
 
   const session = userSessions[chatId];
+  const text = msg.text;
+
   if (!session.date) {
-    session.date = msg.text;
+    session.date = text;
     askEvent(chatId);
   } else if (!session.event) {
-    session.event = msg.text;
+    session.event = text;
     askGuests(chatId);
   } else if (!session.guests) {
-    session.guests = msg.text;
+    if (!guestOptions.includes(text)) return askGuests(chatId, true);
+    session.guests = text;
     askLocation(chatId);
   } else if (!session.location) {
-    session.location = msg.text;
+    if (!locationOptions.includes(text)) return askLocation(chatId, true);
+    session.location = text;
     askHours(chatId);
   } else if (!session.hours) {
-    session.hours = parseInt(msg.text);
+    session.hours = parseInt(text);
     askBudget(chatId);
   } else if (!session.budget) {
-    session.budget = msg.text;
+    if (!budgetOptions.includes(text)) return askBudget(chatId, true);
+    session.budget = text;
     askWords(chatId);
   } else if (!session.words) {
-    session.words = msg.text;
+    session.words = text;
     sendSummary(chatId);
   }
 });
@@ -79,19 +88,19 @@ function askEvent(chatId) {
   });
 }
 
-function askGuests(chatId) {
-  bot.sendMessage(chatId, "👥 Количество гостей:", {
+function askGuests(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "👥 Количество гостей:", {
     reply_markup: {
-      keyboard: [["До 50", "50-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
+      keyboard: guestOptions.map(opt => [opt]),
       one_time_keyboard: true,
     },
   });
 }
 
-function askLocation(chatId) {
-  bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
+function askLocation(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "📍 Где пройдет мероприятие?", {
     reply_markup: {
-      keyboard: [["Новосибирск"], ["Пригород (до 30 км)"], ["Другое"]],
+      keyboard: locationOptions.map(opt => [opt]),
       one_time_keyboard: true,
     },
   });
@@ -101,10 +110,10 @@ function askHours(chatId) {
   bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
 }
 
-function askBudget(chatId) {
-  bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной?", {
+function askBudget(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "💰 Какая стоимость кажется адекватной? (в тысячах рублей)", {
     reply_markup: {
-      keyboard: [["30-50", "51-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
+      keyboard: budgetOptions.map(opt => [opt]),
       one_time_keyboard: true,
     },
   });
