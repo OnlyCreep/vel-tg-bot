@@ -1,7 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
-const token = "YOUR_BOT_TOKEN";
+const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
 const bot = new TelegramBot(token, { polling: true });
-
 const adminChatId = 1032236389;
 
 const guestMultiplier = {
@@ -31,7 +30,7 @@ bot.onText(/\/start/, (msg) => {
 
 bot.onText(/\/survey/, (msg) => {
   const chatId = msg.chat.id;
-  userSessions[chatId] = { userId: msg.from.id, username: msg.from.username || "Неизвестный" };
+  userSessions[chatId] = { user: msg.from, responses: [] };
   askDate(chatId);
 });
 
@@ -46,38 +45,34 @@ bot.on("message", (msg) => {
   if (!userSessions[chatId]) return;
 
   const session = userSessions[chatId];
-  
-  function validateResponse(validOptions, response) {
-    return validOptions.includes(response);
-  }
+  session.responses.push(`Пользователь: ${msg.text}`);
 
   if (!session.date) {
     session.date = msg.text;
     askEvent(chatId);
-  } else if (!session.event && validateResponse(["Корпоратив", "Свадьба", "Выпускной", "День рождения", "Обучение/Тимбилдинг", "Другое"], msg.text)) {
+  } else if (!session.event) {
     session.event = msg.text;
     askGuests(chatId);
-  } else if (!session.guests && validateResponse(Object.keys(guestMultiplier), msg.text)) {
+  } else if (!session.guests) {
     session.guests = msg.text;
     askLocation(chatId);
-  } else if (!session.location && validateResponse(Object.keys(locationExtra), msg.text)) {
+  } else if (!session.location) {
     session.location = msg.text;
     askHours(chatId);
-  } else if (!session.hours && !isNaN(parseInt(msg.text))) {
+  } else if (!session.hours) {
     session.hours = parseInt(msg.text);
     askBudget(chatId);
-  } else if (!session.budget && validateResponse(["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"], msg.text)) {
+  } else if (!session.budget) {
     session.budget = msg.text;
     askWords(chatId);
   } else if (!session.words) {
     session.words = msg.text;
     sendSummary(chatId);
-  } else {
-    bot.sendMessage(chatId, "Пожалуйста, выберите вариант из предложенных.");
   }
 });
 
 function askEvent(chatId) {
+  sendBotResponse(chatId, "🎉 Какое событие?");
   bot.sendMessage(chatId, "🎉 Какое событие?", {
     reply_markup: {
       keyboard: [["Корпоратив", "Свадьба"], ["Выпускной", "День рождения"], ["Обучение/Тимбилдинг", "Другое"]],
@@ -87,6 +82,7 @@ function askEvent(chatId) {
 }
 
 function askGuests(chatId) {
+  sendBotResponse(chatId, "👥 Количество гостей:");
   bot.sendMessage(chatId, "👥 Количество гостей:", {
     reply_markup: {
       keyboard: [["До 50", "50-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
@@ -96,6 +92,7 @@ function askGuests(chatId) {
 }
 
 function askLocation(chatId) {
+  sendBotResponse(chatId, "📍 Где пройдет мероприятие?");
   bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
     reply_markup: {
       keyboard: [["Новосибирск"], ["Пригород (до 30 км)"], ["Другое"]],
@@ -105,11 +102,13 @@ function askLocation(chatId) {
 }
 
 function askHours(chatId) {
+  sendBotResponse(chatId, "⏳ Сколько часов будет мероприятие?");
   bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
 }
 
 function askBudget(chatId) {
-  bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной? (в тысячах рублей)", {
+  sendBotResponse(chatId, "💰 Какая стоимость кажется адекватной?");
+  bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной?", {
     reply_markup: {
       keyboard: [["30-50", "51-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
       one_time_keyboard: true,
@@ -118,6 +117,7 @@ function askBudget(chatId) {
 }
 
 function askWords(chatId) {
+  sendBotResponse(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
   bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
 }
 
@@ -129,11 +129,16 @@ function sendSummary(chatId) {
   const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
 
   const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
-
+  sendBotResponse(chatId, summaryMessage);
   bot.sendMessage(chatId, summaryMessage);
 
-  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget} тыс.₽\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
-
+  const adminMessage = `📝 Новый опрос от @${session.user.username || session.user.first_name}:\n\n${session.responses.join("\n")}\n\nЧат с пользователем: [Перейти](tg://user?id=${session.user.id})`;
   bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
   delete userSessions[chatId];
+}
+
+function sendBotResponse(chatId, text) {
+  if (userSessions[chatId]) {
+    userSessions[chatId].responses.push(`Бот: ${text}`);
+  }
 }
