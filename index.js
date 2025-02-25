@@ -96,3 +96,65 @@ bot.on("message", (msg) => {
     sendSummary(chatId);
   }
 });
+
+function askEvent(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "🎉 Какое событие?", {
+    reply_markup: {
+      keyboard: eventOptions.map(opt => [opt]),
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askGuests(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "👥 Количество гостей:", {
+    reply_markup: {
+      keyboard: guestOptions.map(opt => [opt]),
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askLocation(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "📍 Где пройдет мероприятие?", {
+    reply_markup: {
+      keyboard: locationOptions.map(opt => [opt]),
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askHours(chatId) {
+  bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
+}
+
+function askBudget(chatId, retry = false) {
+  bot.sendMessage(chatId, retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "💰 Какая стоимость кажется адекватной? (в тысячах рублей)", {
+    reply_markup: {
+      keyboard: budgetOptions.map(opt => [opt]),
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askWords(chatId) {
+  bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
+}
+
+function sendSummary(chatId) {
+  const session = userSessions[chatId];
+  let basePrice = 14000;
+  const guestFactor = guestMultiplier[session.guests] || 1;
+  const locationFactor = locationExtra[session.location] || 1;
+  const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
+
+  const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
+
+  bot.sendMessage(chatId, summaryMessage);
+  bot.sendMessage(chatId, `🎁 Люблю делать подарки. При бронировании даты в течение суток, вы можете выбрать один из бонусов:\n1) Доп. час работы диджея\n2) 1.5 часа работы фотографа\n3) 1.5 часа работы рилсмейкера`);
+
+  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
+
+  bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
+  delete userSessions[chatId];
+}
