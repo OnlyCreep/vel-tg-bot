@@ -33,16 +33,6 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/survey/, (msg) => {
   const chatId = msg.chat.id;
   
-  if (userSessions[chatId]) {
-    sendPartialSurvey(chatId);
-  }
-  
-  if (surveyCooldown[chatId] && Date.now() - surveyCooldown[chatId] < 10000) {
-    bot.sendMessage(chatId, "⏳ Вы недавно начинали новый опрос. Подождите немного, прежде чем начать снова.");
-    return;
-  }
-  
-  surveyCooldown[chatId] = Date.now();
   userSessions[chatId] = { userId: msg.from.id, username: msg.from.username || "Неизвестный", responses: [] };
   askDate(chatId);
 });
