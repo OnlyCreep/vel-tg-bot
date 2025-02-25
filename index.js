@@ -3,6 +3,7 @@ const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
 const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = 1032236389;
+const surveyCooldown = {};
 
 const guestMultiplier = {
   "До 50": 1,
@@ -31,6 +32,16 @@ bot.onText(/\/start/, (msg) => {
 
 bot.onText(/\/survey/, (msg) => {
   const chatId = msg.chat.id;
+  if (userSessions[chatId]) {
+    sendPartialSurvey(chatId);
+  }
+
+  if (surveyCooldown[chatId] && Date.now() - surveyCooldown[chatId] < 60000) {
+    bot.sendMessage(chatId, "⏳ Вы недавно начинали новый опрос. Подождите немного, прежде чем начать снова.");
+    return;
+  }
+  
+  surveyCooldown[chatId] = Date.now();
   userSessions[chatId] = { userId: msg.from.id, username: msg.from.username || "Неизвестный", responses: [] };
   askDate(chatId);
 });
@@ -39,7 +50,7 @@ bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   if (!userSessions[chatId]) return;
   
-  if (msg.text.startsWith("/")) {
+  if (msg.text.startsWith("/") && msg.text !== "/survey") {
     sendPartialSurvey(chatId);
     return;
   }
@@ -86,5 +97,3 @@ function sendPartialSurvey(chatId) {
   bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
   delete userSessions[chatId];
 }
-
-// Остальные функции остаются без изменений
