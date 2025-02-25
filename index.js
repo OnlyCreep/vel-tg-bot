@@ -3,7 +3,6 @@ const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
 const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = 1032236389;
-const surveyCooldown = {};
 
 const guestMultiplier = {
   "До 50": 1,
@@ -32,59 +31,103 @@ bot.onText(/\/start/, (msg) => {
 
 bot.onText(/\/survey/, (msg) => {
   const chatId = msg.chat.id;
-  
-  userSessions[chatId] = { userId: msg.from.id, username: msg.from.username || "Неизвестный", responses: [] };
+  userSessions[chatId] = { userId: msg.from.id, username: msg.from.username || "Неизвестный" };
   askDate(chatId);
 });
+
+function askDate(chatId) {
+  bot.sendMessage(chatId, "📅 Введите дату мероприятия:", {
+    reply_markup: { force_reply: true },
+  });
+}
 
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   if (!userSessions[chatId]) return;
-  
-  if (msg.text.startsWith("/") && msg.text !== "/survey") {
-    sendPartialSurvey(chatId);
-    return;
-  }
 
   const session = userSessions[chatId];
-  
-  function validateResponse(validOptions, response) {
-    return validOptions.includes(response);
-  }
-
-  session.responses.push(msg.text);
-  
   if (!session.date) {
     session.date = msg.text;
     askEvent(chatId);
-  } else if (!session.event && validateResponse(["Корпоратив", "Свадьба", "Выпускной", "День рождения", "Обучение/Тимбилдинг", "Другое"], msg.text)) {
+  } else if (!session.event) {
     session.event = msg.text;
     askGuests(chatId);
-  } else if (!session.guests && validateResponse(Object.keys(guestMultiplier), msg.text)) {
+  } else if (!session.guests) {
     session.guests = msg.text;
     askLocation(chatId);
-  } else if (!session.location && validateResponse(Object.keys(locationExtra), msg.text)) {
+  } else if (!session.location) {
     session.location = msg.text;
     askHours(chatId);
-  } else if (!session.hours && !isNaN(parseInt(msg.text))) {
+  } else if (!session.hours) {
     session.hours = parseInt(msg.text);
     askBudget(chatId);
-  } else if (!session.budget && validateResponse(["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"], msg.text)) {
+  } else if (!session.budget) {
     session.budget = msg.text;
     askWords(chatId);
   } else if (!session.words) {
     session.words = msg.text;
     sendSummary(chatId);
-  } else {
-    bot.sendMessage(chatId, "Пожалуйста, выберите вариант из предложенных.");
   }
 });
 
-function sendPartialSurvey(chatId) {
+function askEvent(chatId) {
+  bot.sendMessage(chatId, "🎉 Какое событие?", {
+    reply_markup: {
+      keyboard: [["Корпоратив", "Свадьба"], ["Выпускной", "День рождения"], ["Обучение/Тимбилдинг", "Другое"]],
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askGuests(chatId) {
+  bot.sendMessage(chatId, "👥 Количество гостей:", {
+    reply_markup: {
+      keyboard: [["До 50", "50-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askLocation(chatId) {
+  bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
+    reply_markup: {
+      keyboard: [["Новосибирск"], ["Пригород (до 30 км)"], ["Другое"]],
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askHours(chatId) {
+  bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
+}
+
+function askBudget(chatId) {
+  bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной?", {
+    reply_markup: {
+      keyboard: [["30-50", "51-75"], ["76-100", "101-150"], ["151-200", "Более 200"]],
+      one_time_keyboard: true,
+    },
+  });
+}
+
+function askWords(chatId) {
+  bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
+}
+
+function sendSummary(chatId) {
   const session = userSessions[chatId];
-  if (!session) return;
-  
-  const adminMessage = `📩 Частично завершенный опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\nОтветы:\n${session.responses.join("\n")}`;
+  let basePrice = 14000;
+  const guestFactor = guestMultiplier[session.guests] || 1;
+  const locationFactor = locationExtra[session.location] || 1;
+  const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
+
+  const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
+
+  bot.sendMessage(chatId, summaryMessage);
+  bot.sendMessage(chatId, `🎁 Люблю делать подарки. При бронировании даты в течение суток, вы можете выбрать один из бонусов:\n1) Доп. час работы диджея\n2) 1.5 часа работы фотографа\n3) 1.5 часа работы рилсмейкера`);
+
+  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
+
   bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
   delete userSessions[chatId];
 }
