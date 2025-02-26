@@ -55,15 +55,15 @@ bot.onText(/\/survey/, (msg) => {
   askDate(chatId);
 });
 
+const imageUrls = [
+  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
+  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
+  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
+  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png"
+];
+
 function askImageSelection(chatId) {
   bot.sendMessage(chatId, "\uD83D\uDCF8 Выберите картинку по душе. В работе я использую психологию, чтобы лучше понимать людей и их желания. Получается или нет, узнаем на встрече))");
-
-  const imageUrls = [
-    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
-    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
-    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
-    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png"
-  ];
 
   imageUrls.forEach((url, index) => {
     bot.sendPhoto(chatId, url, { caption: `Картинка ${index + 1}` });
@@ -84,6 +84,24 @@ function askBonusSelection(chatId, session) {
       one_time_keyboard: true,
     },
   });
+}
+
+function sendSummary(chatId) {
+  const session = userSessions[chatId];
+  let basePrice = 14000;
+  const guestFactor = guestMultiplier[session.guests] || 1;
+  const locationFactor = locationExtra[session.location] || 1;
+  const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
+
+  const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
+
+  bot.sendMessage(chatId, summaryMessage);
+  askBonusSelection(chatId, session);
+
+  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
+
+  bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
+  delete userSessions[chatId];
 }
 
 function askDate(chatId) {
@@ -131,6 +149,12 @@ bot.on("message", (msg) => {
     const selectedImageUrl = imageUrls[parseInt(text) - 1];
     bot.sendPhoto(adminChatId, selectedImageUrl, { caption: `Пользователь @${session.username} выбрал картинку ${text}` });
     sendSummary(chatId);
+  } else if (!session.bonus) {
+    if (!["1", "2", "3"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер бонуса от 1 до 3.");
+    session.bonus = text;
+    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Спасибо за участие в опросе!");
+    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал бонус: ${text}`, { parse_mode: "Markdown" });
+    delete userSessions[chatId];
   }
 });
 
@@ -176,22 +200,4 @@ function askBudget(chatId, retry = false) {
 
 function askWords(chatId) {
   bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
-}
-
-function sendSummary(chatId) {
-  const session = userSessions[chatId];
-  let basePrice = 14000;
-  const guestFactor = guestMultiplier[session.guests] || 1;
-  const locationFactor = locationExtra[session.location] || 1;
-  const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
-
-  const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
-
-  bot.sendMessage(chatId, summaryMessage);
-  askBonusSelection(chatId, session);
-
-  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
-
-  bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
-  delete userSessions[chatId];
 }
