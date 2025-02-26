@@ -49,7 +49,6 @@ function calculatePrice(session) {
   let guestFactor = guestMultiplier[session.guests] || 1;
   let locationFactor = locationExtra[session.location] || 1;
   let totalPrice = baseRate * session.hours * guestFactor;
-  totalPrice += locationFactor > 1 ? baseRate * (locationFactor - 1) * session.hours : locationFactor;
   return totalPrice;
 }
 
