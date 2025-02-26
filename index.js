@@ -1,5 +1,5 @@
 const TelegramBot = require("node-telegram-bot-api");
-const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
+const token = "YOUR_BOT_TOKEN";
 const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = 1032236389;
@@ -27,12 +27,15 @@ const locationExtra = {
 let userSessions = {};
 let lastSurveyTime = {};
 
+const images = [
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png", caption: "Футуризм" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png", caption: "Уют" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png", caption: "Природа" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png", caption: "Роскошь" }
+];
+
 bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(
-    chatId,
-    "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)"
-  );
+  bot.sendMessage(msg.chat.id, "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)");
 });
 
 bot.onText(/\/survey/, (msg) => {
@@ -46,43 +49,20 @@ bot.onText(/\/survey/, (msg) => {
   }
 
   lastSurveyTime[userId] = now;
-
-  if (userSessions[chatId]) {
-    bot.sendMessage(adminChatId, `⚠️ Пользователь @${username} (ID: ${userId}) перезапустил опрос.`);
-  }
-
   userSessions[chatId] = { userId, username };
   askDate(chatId);
 });
 
-const imageUrls = [
-  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
-  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
-  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
-  "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png"
-];
-
 function askImageSelection(chatId) {
-  bot.sendMessage(chatId, "\uD83D\uDCF8 Выберите картинку по душе. В работе я использую психологию, чтобы лучше понимать людей и их желания. Получается или нет, узнаем на встрече))");
-
-  imageUrls.forEach((url, index) => {
-    bot.sendPhoto(chatId, url, { caption: `Картинка ${index + 1}` });
-  });
-
-  bot.sendMessage(chatId, "Выберите номер картинки:", {
-    reply_markup: {
-      keyboard: [["1"], ["2"], ["3"], ["4"]],
-      one_time_keyboard: true,
-    },
+  bot.sendMediaGroup(chatId, images.map(img => ({ type: "photo", media: img.url, caption: img.caption })));
+  bot.sendMessage(chatId, "Выберите картинку по душе:", {
+    reply_markup: { keyboard: images.map(img => [img.caption]), one_time_keyboard: true },
   });
 }
 
-function askBonusSelection(chatId, session) {
+function askBonusSelection(chatId) {
   bot.sendMessage(chatId, "🎁 Люблю делать подарки. При бронировании даты в течение суток, вы можете выбрать один из бонусов:\n1) Доп. час работы диджея\n2) 1.5 часа работы фотографа\n3) 1.5 часа работы рилсмейкера", {
-    reply_markup: {
-      keyboard: [["1"], ["2"], ["3"]],
-      one_time_keyboard: true,
-    },
+    reply_markup: { keyboard: [["Доп. час диджея"], ["1.5 часа фотографа"], ["1.5 часа рилсмейкера"]], one_time_keyboard: true },
   });
 }
 
@@ -93,21 +73,9 @@ function sendSummary(chatId) {
   const locationFactor = locationExtra[session.location] || 1;
   const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
 
-  const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
-
-  bot.sendMessage(chatId, summaryMessage);
-  askBonusSelection(chatId, session);
-
-  const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
-
-  bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
-  delete userSessions[chatId];
-}
-
-function askDate(chatId) {
-  bot.sendMessage(chatId, "📅 Введите дату мероприятия:", {
-    reply_markup: { force_reply: true },
-  });
+  session.totalPrice = totalPrice;
+  bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`);
+  bot.sendMessage(adminChatId, `📩 Новый опрос\n👤 Пользователь: @${session.username}\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`, { parse_mode: "Markdown" });
 }
 
 bot.on("message", (msg) => {
@@ -144,16 +112,16 @@ bot.on("message", (msg) => {
     session.words = text;
     askImageSelection(chatId);
   } else if (!session.selectedImage) {
-    if (!["1", "2", "3", "4"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер картинки от 1 до 4.");
+    if (!images.some(img => img.caption === text)) return;
     session.selectedImage = text;
-    const selectedImageUrl = imageUrls[parseInt(text) - 1];
-    bot.sendPhoto(adminChatId, selectedImageUrl, { caption: `Пользователь @${session.username} выбрал картинку ${text}` });
-    sendSummary(chatId);
+    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал картинку: ${text}`);
+    askBonusSelection(chatId);
   } else if (!session.bonus) {
-    if (!["1", "2", "3"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер бонуса от 1 до 3.");
+    if (!["Доп. час диджея", "1.5 часа фотографа", "1.5 часа рилсмейкера"].includes(text)) return;
     session.bonus = text;
-    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Спасибо за участие в опросе!");
-    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал бонус: ${text}`, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Рассчитываем стоимость...");
+    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал бонус: ${text}`);
+    sendSummary(chatId);
     delete userSessions[chatId];
   }
 });
