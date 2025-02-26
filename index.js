@@ -154,7 +154,7 @@ function sendSummary(chatId) {
 
     
     bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`);
-    bot.sendMessage(adminChatId, `Новый запрос от @${msg.from.username}\n💰 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`);
+    bot.sendMessage(adminChatId, `Новый запрос от @${msg.from.username}\n Сообщение:\n${summaryMessage}`);
 
   delete userSessions[chatId];
 }
