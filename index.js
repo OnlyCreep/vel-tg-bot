@@ -176,6 +176,10 @@ function askLocation(chatId, retry = false) {
   });
 }
 
+function askDate(chatId) {
+  bot.sendMessage(chatId, "📆 Выберите дату мероприятия");
+}
+
 function askHours(chatId) {
   bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
 }
