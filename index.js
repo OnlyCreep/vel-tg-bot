@@ -232,7 +232,8 @@ function sendSummary(chatId) {
   );
   bot.sendMessage(
     adminChatId,
-    `Новый запрос от @${session.username}\n Сообщение:\n${summaryMessage}`
+    summaryMessage,
+    { parse_mode: "Markdown" }
   );
 }
 
@@ -287,7 +288,10 @@ bot.on("message", (msg) => {
     )
       return;
     session.bonus = text;
-    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Спасибо за прохождение опроса");
+    bot.sendMessage(
+      chatId,
+      "✅ Ваш бонус учтен! Спасибо за прохождение опроса"
+    );
     sendSummary(chatId);
     delete userSessions[chatId];
   }
