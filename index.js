@@ -119,6 +119,8 @@ bot.on("message", (msg) => {
   } else if (!session.selectedImage) {
     if (!["1", "2", "3", "4"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер картинки от 1 до 4.");
     session.selectedImage = text;
+    const selectedImageUrl = imageUrls[parseInt(text) - 1];
+    bot.sendPhoto(adminChatId, selectedImageUrl, { caption: `Пользователь @${session.username} выбрал картинку ${text}` });
     sendSummary(chatId);
   }
 });
