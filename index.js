@@ -3,36 +3,95 @@ const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
 const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = 1032236389;
-
 const guestOptions = ["До 50", "50-75", "76-100", "101-150", "151-200", "Более 200"];
 const eventOptions = ["Корпоратив", "Свадьба", "Выпускной", "День рождения", "Обучение/Тимбилдинг", "Другое"];
 const locationOptions = ["Новосибирск", "Пригород (до 30 км)", "Другое"];
 const budgetOptions = ["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"];
-
+const seasonRates = {
+  "январь": { "вс-чт": 11000, "пт-сб": 14000 },
+  "февраль": { "вс-чт": 11000, "пт-сб": 14000 },
+  "март": { "вс-чт": 11000, "пт-сб": 14000 },
+  "апрель": { "вс-чт": 11000, "пт-сб": 14000 },
+  "май": { "вс-чт": 11000, "пт-сб": 14000 },
+  "июнь": { "вс-чт": 14000, "пт-сб": 15000 },
+  "июль": { "вс-чт": 14000, "пт-сб": 15000 },
+  "август": { "вс-чт": 14000, "пт-сб": 15000 },
+  "сентябрь": { "вс-чт": 11000, "пт-сб": 14000 },
+  "октябрь": { "вс-чт": 11000, "пт-сб": 14000 },
+  "ноябрь": { "вс-чт": 11000, "пт-сб": 14000 },
+  "декабрь": { "до 14": 14000, "с 15": 15000 }
+};
 const guestMultiplier = {
   "До 50": 1,
   "50-75": 1.1,
   "76-100": 1.2,
   "101-150": 1.7,
   "151-200": 2,
-  "Более 200": 2.5,
+  "Более 200": 2.5
 };
-
 const locationExtra = {
   "Новосибирск": 0,
   "Пригород (до 30 км)": 5000,
-  "Другое": 1.5,
+  "Другое": 1.5
 };
-
 let userSessions = {};
 let lastSurveyTime = {};
 
 const images = [
-  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png", caption: "Футуризм" },
-  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png", caption: "Уют" },
-  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png", caption: "Природа" },
-  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png", caption: "Роскошь" }
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png", caption: "Девушка с синими плетёными аксессуарами (первая картинка слева)" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png", caption: "Уютная спальня с жёлтыми шторами (верхняя справа)" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png", caption: "Зелёные листья вблизи (по центру справа)" },
+  { url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png", caption: "Женщина в роскошном образе с украшениями (нижняя справа)" }
 ];
+
+function calculatePrice(session) {
+  let baseRate = getBaseRate(session.date);
+  let guestFactor = guestMultiplier[session.guests] || 1;
+  let locationFactor = locationExtra[session.location] || 1;
+  let totalPrice = baseRate * session.hours * guestFactor;
+  totalPrice += locationFactor > 1 ? baseRate * (locationFactor - 1) * session.hours : locationFactor;
+  return totalPrice;
+}
+
+function getBaseRate(dateString) {
+  const months = {
+    "январь": 1, "февраль": 2, "март": 3, "апрель": 4, "май": 5,
+    "июнь": 6, "июль": 7, "август": 8, "сентябрь": 9, "октябрь": 10, "ноябрь": 11, "декабрь": 12
+  };
+  
+  let date = parseDate(dateString);
+  let monthName = Object.keys(months).find(m => dateString.toLowerCase().includes(m)) || Object.keys(months)[date.getMonth()];
+  let day = date.getDate();
+  let dayOfWeek = date.getDay();
+  let rateType = dayOfWeek >= 5 ? "пт-сб" : "вс-чт";
+  if (monthName === "декабрь" && day >= 15) {
+    return seasonRates["декабрь"]["с 15"];
+  }
+  return seasonRates[monthName][rateType];
+}
+
+function parseDate(input) {
+  let date = new Date();
+  if (!isNaN(input)) {
+    date.setDate(parseInt(input));
+  } else {
+    let parsedDate = Date.parse(input);
+    if (!isNaN(parsedDate)) {
+      date = new Date(parsedDate);
+    }
+  }
+  return date;
+}
+
+function askDate(chatId) {
+  bot.sendMessage(chatId, "📆 Введите дату мероприятия (например, 15 января или просто число месяца)");
+}
+
+function askGuests(chatId) {
+  bot.sendMessage(chatId, "👥 Количество гостей?", {
+    reply_markup: { keyboard: guestOptions.map(opt => [opt]), one_time_keyboard: true }
+  });
+}
 
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)");
@@ -78,11 +137,7 @@ function askBonusSelection(chatId) {
 
 function sendSummary(chatId) {
   const session = userSessions[chatId];
-  let basePrice = 14000;
-  const guestFactor = guestMultiplier[session.guests] || 1;
-  const locationFactor = locationExtra[session.location] || 1;
-  const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
-  session.totalPrice = totalPrice;
+  let totalPrice = calculatePrice(session);
 
   const summaryMessage = `📩 *Новый опрос*\n` +
     `👤 *Пользователь*: @${session.username}\n` +
@@ -97,8 +152,9 @@ function sendSummary(chatId) {
     `🎁 *Выбранный бонус*: ${session.bonus}\n` +
     `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-  bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`);
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+    
+    bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`);
+    bot.sendMessage(adminChatId, `Новый запрос от @${msg.from.username}\n💰 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`);
 
   delete userSessions[chatId];
 }
