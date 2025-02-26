@@ -54,9 +54,19 @@ bot.onText(/\/survey/, (msg) => {
 });
 
 function askImageSelection(chatId) {
-  bot.sendMediaGroup(chatId, images.map(img => ({ type: "photo", media: img.url, caption: img.caption })));
-  bot.sendMessage(chatId, "Выберите картинку по душе:", {
-    reply_markup: { keyboard: images.map(img => [img.caption]), one_time_keyboard: true },
+  const mediaGroup = images.map(img => ({
+    type: "photo",
+    media: img.url,
+    caption: img.caption
+  }));
+
+  bot.sendMediaGroup(chatId, mediaGroup).then(() => {
+    bot.sendMessage(chatId, "Выберите картинку по душе:", {
+      reply_markup: {
+        keyboard: images.map(img => [img.caption]),
+        one_time_keyboard: true,
+      }
+    });
   });
 }
 
@@ -72,10 +82,25 @@ function sendSummary(chatId) {
   const guestFactor = guestMultiplier[session.guests] || 1;
   const locationFactor = locationExtra[session.location] || 1;
   const totalPrice = basePrice * guestFactor + (locationFactor > 1 ? basePrice * (locationFactor - 1) : locationFactor);
-
   session.totalPrice = totalPrice;
+
+  const summaryMessage = `📩 *Новый опрос*\n` +
+    `👤 *Пользователь*: @${session.username}\n` +
+    `📅 *Дата*: ${session.date}\n` +
+    `🎉 *Событие*: ${session.event}\n` +
+    `👥 *Гости*: ${session.guests}\n` +
+    `📍 *Локация*: ${session.location}\n` +
+    `⏳ *Длительность*: ${session.hours} ч.\n` +
+    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
   bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`);
-  bot.sendMessage(adminChatId, `📩 Новый опрос\n👤 Пользователь: @${session.username}\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`, { parse_mode: "Markdown" });
+  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+
+  delete userSessions[chatId];
 }
 
 bot.on("message", (msg) => {
@@ -114,13 +139,11 @@ bot.on("message", (msg) => {
   } else if (!session.selectedImage) {
     if (!images.some(img => img.caption === text)) return;
     session.selectedImage = text;
-    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал картинку: ${text}`);
     askBonusSelection(chatId);
   } else if (!session.bonus) {
     if (!["Доп. час диджея", "1.5 часа фотографа", "1.5 часа рилсмейкера"].includes(text)) return;
     session.bonus = text;
     bot.sendMessage(chatId, "✅ Ваш бонус учтен! Рассчитываем стоимость...");
-    bot.sendMessage(adminChatId, `📩 Пользователь @${session.username} выбрал бонус: ${text}`);
     sendSummary(chatId);
     delete userSessions[chatId];
   }
