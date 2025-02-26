@@ -289,9 +289,8 @@ bot.on("message", (msg) => {
     )
       return;
     session.bonus = text;
-    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Рассчитываем стоимость...");
+    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Спасибо за прохождение опроса.");
     sendSummary(chatId);
-    delete userSessions[chatId];
   }
 });
 
