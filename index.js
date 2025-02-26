@@ -55,6 +55,28 @@ bot.onText(/\/survey/, (msg) => {
   askDate(chatId);
 });
 
+function askImageSelection(chatId) {
+  bot.sendMessage(chatId, "\uD83D\uDCF8 Выберите картинку по душе. В работе я использую психологию, чтобы лучше понимать людей и их желания. Получается или нет, узнаем на встрече))");
+
+  const imageUrls = [
+    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
+    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
+    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
+    "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png"
+  ];
+
+  imageUrls.forEach((url, index) => {
+    bot.sendPhoto(chatId, url, { caption: `Картинка ${index + 1}` });
+  });
+
+  bot.sendMessage(chatId, "Выберите номер картинки:", {
+    reply_markup: {
+      keyboard: [["1"], ["2"], ["3"], ["4"]],
+      one_time_keyboard: true,
+    },
+  });
+}
+
 function askDate(chatId) {
   bot.sendMessage(chatId, "📅 Введите дату мероприятия:", {
     reply_markup: { force_reply: true },
@@ -93,6 +115,10 @@ bot.on("message", (msg) => {
     askWords(chatId);
   } else if (!session.words) {
     session.words = text;
+    askImageSelection(chatId);
+  } else if (!session.selectedImage) {
+    if (!["1", "2", "3", "4"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер картинки от 1 до 4.");
+    session.selectedImage = text;
     sendSummary(chatId);
   }
 });
