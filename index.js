@@ -77,18 +77,18 @@ function askImageSelection(chatId) {
   });
 }
 
-function askDate(chatId) {
-  bot.sendMessage(chatId, "📅 Введите дату мероприятия:", {
-    reply_markup: { force_reply: true },
-  });
-}
-
-function askBonusSelection(chatId) {
+function askBonusSelection(chatId, session) {
   bot.sendMessage(chatId, "🎁 Люблю делать подарки. При бронировании даты в течение суток, вы можете выбрать один из бонусов:\n1) Доп. час работы диджея\n2) 1.5 часа работы фотографа\n3) 1.5 часа работы рилсмейкера", {
     reply_markup: {
       keyboard: [["1"], ["2"], ["3"]],
       one_time_keyboard: true,
     },
+  });
+}
+
+function askDate(chatId) {
+  bot.sendMessage(chatId, "📅 Введите дату мероприятия:", {
+    reply_markup: { force_reply: true },
   });
 }
 
@@ -130,11 +130,7 @@ bot.on("message", (msg) => {
     session.selectedImage = text;
     const selectedImageUrl = imageUrls[parseInt(text) - 1];
     bot.sendPhoto(adminChatId, selectedImageUrl, { caption: `Пользователь @${session.username} выбрал картинку ${text}` });
-    askBonusSelection(chatId);
-  } else if (!session.bonus) {
-    if (!["1", "2", "3"].includes(text)) return bot.sendMessage(chatId, "⛔ Пожалуйста, выберите номер бонуса от 1 до 3.");
-    session.bonus = text;
-    bot.sendMessage(chatId, "✅ Ваш бонус учтен! Спасибо за участие в опросе!");
+    sendSummary(chatId);
   }
 });
 
@@ -192,6 +188,7 @@ function sendSummary(chatId) {
   const summaryMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная, но ориентировочная. Окончательная смета после встречи и согласования программы.`;
 
   bot.sendMessage(chatId, summaryMessage);
+  askBonusSelection(chatId, session);
 
   const adminMessage = `📩 Новый опрос\n👤 Пользователь: @${session.username} (ID: ${session.userId})\n🔗 Чат: [Открыть чат](tg://user?id=${session.userId})\n\n📅 Дата: ${session.date}\n🎉 Событие: ${session.event}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Время: ${session.hours} часов\n💰 Бюджет: ${session.budget}\n🔮 Ключевые слова: ${session.words}\n💵 Итоговая стоимость: ${totalPrice.toLocaleString()}₽`;
 
