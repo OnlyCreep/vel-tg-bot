@@ -146,10 +146,13 @@ function askGuests(chatId) {
   });
 }
 
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const username = msg.from.username || "Неизвестный";
+
+  // Удаляем все старые сообщения бота перед перезапуском
+  await deletePreviousBotMessages(chatId);
 
   // Проверяем, проходил ли пользователь квиз
   if (userSessions[chatId]) {
@@ -160,9 +163,10 @@ bot.onText(/\/start/, (msg) => {
     );
   }
 
-  // Очистка данных пользователя
+  // Полностью очищаем данные пользователя
   delete userSessions[chatId];
 
+  // Отправляем стартовое сообщение
   bot.sendMessage(
     chatId,
     "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
@@ -231,12 +235,12 @@ async function deletePreviousBotMessages(chatId) {
   }
 }
 
-// Функция отправки сообщений с сохранением их ID
+// Функция отправки сообщений с сохранением ID сообщений бота
 async function sendBotMessage(chatId, text, options = {}) {
   try {
     const sentMessage = await bot.sendMessage(chatId, text, options);
-    if (!userSessions[chatId].botMessages) {
-      userSessions[chatId].botMessages = [];
+    if (!userSessions[chatId]) {
+      userSessions[chatId] = { botMessages: [] };
     }
     userSessions[chatId].botMessages.push(sentMessage.message_id);
   } catch (err) {
