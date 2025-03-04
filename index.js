@@ -155,23 +155,19 @@ bot.onText(/\/start/, (msg) => {
     "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
     {
       reply_markup: {
-        keyboard: [["Поехали🚂"]],
-        one_time_keyboard: true,
-        resize_keyboard: true,
+        inline_keyboard: [[{ text: "Поехали🚂", callback_data: "start_survey" }]],
       },
     }
   );
 });
 
-bot.on("message", (msg) => {
-  const chatId = msg.chat.id;
-  const text = msg.text;
-  
-  if (text === "Поехали🚂") {
-    const userId = msg.from.id;
-    const username = msg.from.username || "Неизвестный";
-    const now = Date.now();
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
+  const now = Date.now();
 
+  if (query.data === "start_survey") {
     if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
       return bot.sendMessage(
         chatId,
@@ -183,6 +179,21 @@ bot.on("message", (msg) => {
     userSessions[chatId] = { userId, username };
     askDate(chatId);
   }
+});
+
+bot.on("message", (msg) => {
+  const chatId = msg.chat.id;
+  if (msg.text.startsWith("/")) return; // Игнорируем команды
+
+  bot.sendMessage(
+    chatId,
+    "Хотите пройти короткий квиз и узнать стоимость вашего мероприятия?",
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Поехали🚂", callback_data: "start_survey" }]],
+      },
+    }
+  );
 });
 
 bot.onText(/\/survey/, (msg) => {
