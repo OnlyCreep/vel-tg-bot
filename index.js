@@ -194,17 +194,17 @@ bot.on("callback_query", (query) => {
   }
 });
 
-bot.onText(/\/survey/, (msg) => {
+bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const username = msg.from.username || "Неизвестный";
   const now = Date.now();
 
-  // Очищаем старые сообщения квиза
-  bot.deleteMessage(chatId, msg.message_id);
+  // Удаляем старые сообщения бота, если есть
+  await deletePreviousBotMessages(chatId);
 
-  // Удаляем старые данные пользователя перед запуском нового опроса
-  delete userSessions[chatId];
+  // Удаляем старую сессию и создаем новую
+  userSessions[chatId] = { userId, username, isSurveyActive: true, botMessages: [] };
 
   // Уведомляем администратора о перезапуске квиза
   bot.sendMessage(
@@ -214,10 +214,35 @@ bot.onText(/\/survey/, (msg) => {
   );
 
   lastSurveyTime[userId] = now;
-  userSessions[chatId] = { userId, username, isSurveyActive: true };
 
   askDate(chatId);
 });
+
+async function deletePreviousBotMessages(chatId) {
+  if (userSessions[chatId]?.botMessages?.length) {
+    for (const messageId of userSessions[chatId].botMessages) {
+      try {
+        await bot.deleteMessage(chatId, messageId);
+      } catch (err) {
+        console.error(`Ошибка удаления сообщения ${messageId}:`, err.message);
+      }
+    }
+    userSessions[chatId].botMessages = [];
+  }
+}
+
+// Функция отправки сообщений с сохранением их ID
+async function sendBotMessage(chatId, text, options = {}) {
+  try {
+    const sentMessage = await bot.sendMessage(chatId, text, options);
+    if (!userSessions[chatId].botMessages) {
+      userSessions[chatId].botMessages = [];
+    }
+    userSessions[chatId].botMessages.push(sentMessage.message_id);
+  } catch (err) {
+    console.error("Ошибка отправки сообщения:", err.message);
+  }
+}
 
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;
@@ -361,7 +386,7 @@ bot.on("message", (msg) => {
 });
 
 function askEvent(chatId, retry = false) {
-  bot.sendMessage(
+  sendBotMessage(
     chatId,
     retry ? "⛔ Пожалуйста, выберите вариант из списка!" : "🎉 Какое событие?",
     {
@@ -374,7 +399,7 @@ function askEvent(chatId, retry = false) {
 }
 
 function askGuests(chatId, retry = false) {
-  bot.sendMessage(
+  sendBotMessage(
     chatId,
     retry
       ? "⛔ Пожалуйста, выберите вариант из списка!"
@@ -389,7 +414,7 @@ function askGuests(chatId, retry = false) {
 }
 
 function askLocation(chatId) {
-  bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
+  sendBotMessage(chatId, "📍 Где пройдет мероприятие?", {
     reply_markup: {
       keyboard: locationOptions.map((opt) => [opt]),
       one_time_keyboard: true,
@@ -397,16 +422,12 @@ function askLocation(chatId) {
   });
 }
 
-function askDate(chatId) {
-  bot.sendMessage(chatId, "📆 Выберите дату мероприятия");
-}
-
 function askHours(chatId) {
-  bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
+  sendBotMessage(chatId, "⏳ Сколько часов будет мероприятие?");
 }
 
 function askBudget(chatId) {
-  bot.sendMessage(
+  sendBotMessage(
     chatId,
     "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
     {
@@ -419,5 +440,5 @@ function askBudget(chatId) {
 }
 
 function askWords(chatId) {
-  bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
+  sendBotMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
 }
