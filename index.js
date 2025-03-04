@@ -134,10 +134,7 @@ function parseDate(input) {
 }
 
 function askDate(chatId) {
-  bot.sendMessage(
-    chatId,
-    "📆 Введите дату мероприятия (например, 15 января или просто число месяца)"
-  );
+  bot.sendMessage(chatId, "📆 Введите дату мероприятия (например, 15 января)");
 }
 
 function askGuests(chatId) {
@@ -181,13 +178,33 @@ bot.on("callback_query", (query) => {
   }
 });
 
+bot.onText(/\/survey/, (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const username = msg.from.username || "Неизвестный";
+  const now = Date.now();
+
+  // Удаляем старые данные пользователя
+  userSessions[chatId] = { userId, username, isSurveyActive: true };
+  lastSurveyTime[userId] = now;
+
+  // Уведомляем администратора о перезапуске
+  bot.sendMessage(
+    adminChatId,
+    `🔄 Пользователь [@${username}](tg://user?id=${userId}) перезапустил квиз.`,
+    { parse_mode: "Markdown" }
+  );
+
+  askDate(chatId);
+});
+
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   if (msg.text.startsWith("/")) return; // Игнорируем команды
-  
+
   // Проверяем, если пользователь уже проходит квиз
   if (userSessions[chatId] && userSessions[chatId].isSurveyActive) return;
-  
+
   bot.sendMessage(
     chatId,
     "Хотите пройти короткий квиз и узнать стоимость вашего мероприятия?",
@@ -197,25 +214,6 @@ bot.on("message", (msg) => {
       },
     }
   );
-});
-
-
-bot.onText(/\/survey/, (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const username = msg.from.username || "Неизвестный";
-  const now = Date.now();
-
-  if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
-    return bot.sendMessage(
-      chatId,
-      "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
-    );
-  }
-
-  lastSurveyTime[userId] = now;
-  userSessions[chatId] = { userId, username };
-  askDate(chatId);
 });
 
 function askImageSelection(chatId) {
@@ -369,19 +367,13 @@ function askGuests(chatId, retry = false) {
   );
 }
 
-function askLocation(chatId, retry = false) {
-  bot.sendMessage(
-    chatId,
-    retry
-      ? "⛔ Пожалуйста, выберите вариант из списка!"
-      : "📍 Где пройдет мероприятие?",
-    {
-      reply_markup: {
-        keyboard: locationOptions.map((opt) => [opt]),
-        one_time_keyboard: true,
-      },
-    }
-  );
+function askLocation(chatId) {
+  bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
+    reply_markup: {
+      keyboard: locationOptions.map((opt) => [opt]),
+      one_time_keyboard: true,
+    },
+  });
 }
 
 function askDate(chatId) {
@@ -392,12 +384,10 @@ function askHours(chatId) {
   bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
 }
 
-function askBudget(chatId, retry = false) {
+function askBudget(chatId) {
   bot.sendMessage(
     chatId,
-    retry
-      ? "⛔ Пожалуйста, выберите вариант из списка!"
-      : "💰 Какая стоимость кажется адекватной? (в тысячах рублей)",
+    "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
     {
       reply_markup: {
         keyboard: budgetOptions.map((opt) => [opt]),
@@ -408,8 +398,5 @@ function askBudget(chatId, retry = false) {
 }
 
 function askWords(chatId) {
-  bot.sendMessage(
-    chatId,
-    "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?"
-  );
+  bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
 }
