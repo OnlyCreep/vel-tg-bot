@@ -176,7 +176,7 @@ bot.on("callback_query", (query) => {
     }
 
     lastSurveyTime[userId] = now;
-    userSessions[chatId] = { userId, username };
+    userSessions[chatId] = { userId, username, isSurveyActive: true };
     askDate(chatId);
   }
 });
@@ -184,7 +184,10 @@ bot.on("callback_query", (query) => {
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   if (msg.text.startsWith("/")) return; // Игнорируем команды
-
+  
+  // Проверяем, если пользователь уже проходит квиз
+  if (userSessions[chatId] && userSessions[chatId].isSurveyActive) return;
+  
   bot.sendMessage(
     chatId,
     "Хотите пройти короткий квиз и узнать стоимость вашего мероприятия?",
@@ -195,6 +198,7 @@ bot.on("message", (msg) => {
     }
   );
 });
+
 
 bot.onText(/\/survey/, (msg) => {
   const chatId = msg.chat.id;
