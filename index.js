@@ -147,8 +147,24 @@ function askGuests(chatId) {
 }
 
 bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const username = msg.from.username || "Неизвестный";
+
+  // Проверяем, проходил ли пользователь квиз
+  if (userSessions[chatId]) {
+    bot.sendMessage(
+      adminChatId,
+      `⚠️ Пользователь [@${username}](tg://user?id=${userId}) остановил текущий опрос командой /start.`,
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  // Очистка данных пользователя
+  delete userSessions[chatId];
+
   bot.sendMessage(
-    msg.chat.id,
+    chatId,
     "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
     {
       reply_markup: {
@@ -184,16 +200,21 @@ bot.onText(/\/survey/, (msg) => {
   const username = msg.from.username || "Неизвестный";
   const now = Date.now();
 
-  // Удаляем старые данные пользователя
-  userSessions[chatId] = { userId, username, isSurveyActive: true };
-  lastSurveyTime[userId] = now;
+  // Очищаем старые сообщения квиза
+  bot.deleteMessage(chatId, msg.message_id);
 
-  // Уведомляем администратора о перезапуске
+  // Удаляем старые данные пользователя перед запуском нового опроса
+  delete userSessions[chatId];
+
+  // Уведомляем администратора о перезапуске квиза
   bot.sendMessage(
     adminChatId,
     `🔄 Пользователь [@${username}](tg://user?id=${userId}) перезапустил квиз.`,
     { parse_mode: "Markdown" }
   );
+
+  lastSurveyTime[userId] = now;
+  userSessions[chatId] = { userId, username, isSurveyActive: true };
 
   askDate(chatId);
 });
