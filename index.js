@@ -210,13 +210,6 @@ bot.onText(/\/survey/, async (msg) => {
   // Удаляем старую сессию и создаем новую
   userSessions[chatId] = { userId, username, isSurveyActive: true, botMessages: [] };
 
-  // Уведомляем администратора о перезапуске квиза
-  bot.sendMessage(
-    adminChatId,
-    `🔄 Пользователь [@${username}](tg://user?id=${userId}) перезапустил квиз.`,
-    { parse_mode: "Markdown" }
-  );
-
   lastSurveyTime[userId] = now;
 
   askDate(chatId);
