@@ -164,7 +164,7 @@ bot.onText(/\/start/, async (msg) => {
   }
 
   // Полностью очищаем данные пользователя и прерываем квиз
-  delete userSessions[chatId];
+  userSessions[chatId] = { isSurveyActive: false }; // Сбрасываем состояние опроса
 
   // Отправляем стартовое сообщение с кнопкой
   bot.sendMessage(
@@ -329,9 +329,9 @@ function sendSummary(chatId) {
   );
 }
 
-bot.on("message", (msg) => {
+bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
-  if (!userSessions[chatId]) return;
+  if (!userSessions[chatId] || !userSessions[chatId].isSurveyActive) return; // Прерываем, если квиз не активен
 
   const session = userSessions[chatId];
   const text = msg.text;
