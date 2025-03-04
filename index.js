@@ -331,36 +331,52 @@ function sendSummary(chatId) {
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
-  if (!userSessions[chatId] || !userSessions[chatId].isSurveyActive) return; // Прерываем, если квиз не активен
+  const text = msg.text;
+
+  // Игнорируем команды (сообщения, начинающиеся с "/")
+  if (text.startsWith("/")) return;
+
+  // Проверяем, есть ли активная сессия и квиз
+  if (!userSessions[chatId] || !userSessions[chatId].isSurveyActive) return;
 
   const session = userSessions[chatId];
-  const text = msg.text;
 
   if (!session.date) {
     session.date = text;
     askEvent(chatId);
   } else if (!session.event) {
-    if (!eventOptions.includes(text)) return askEvent(chatId, true);
+    if (!eventOptions.includes(text)) {
+      askEvent(chatId, true);
+      return;
+    }
     session.event = text;
     askGuests(chatId);
   } else if (!session.guests) {
-    if (!guestOptions.includes(text)) return askGuests(chatId, true);
+    if (!guestOptions.includes(text)) {
+      askGuests(chatId, true);
+      return;
+    }
     session.guests = text;
     askLocation(chatId);
   } else if (!session.location) {
-    if (!locationOptions.includes(text)) return askLocation(chatId, true);
+    if (!locationOptions.includes(text)) {
+      askLocation(chatId, true);
+      return;
+    }
     session.location = text;
     askHours(chatId);
   } else if (!session.hours) {
-    if (isNaN(text) || parseInt(text) <= 0)
-      return bot.sendMessage(
-        chatId,
-        "⛔ Введите корректное количество часов цифрами!"
-      );
+    if (isNaN(text) || parseInt(text) <= 0) {
+      bot.sendMessage(chatId, "⛔ Введите корректное количество часов цифрами!");
+      return;
+    }
     session.hours = parseInt(text);
     askBudget(chatId);
   } else if (!session.budget) {
-    if (!budgetOptions.includes(text)) return askBudget(chatId, true);
+    if (!budgetOptions.includes(text)) {
+      askBudget(chatId, true);
+      return;
+    }
     session.budget = text;
     askWords(chatId);
   } else if (!session.words) {
@@ -377,8 +393,8 @@ bot.on("message", async (msg) => {
         "1.5 часа фотографа",
         "1.5 часа рилсмейкера",
       ].includes(text)
-    )
-      return;
+    ) return;
+    
     session.bonus = text;
     bot.sendMessage(
       chatId,
