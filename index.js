@@ -307,18 +307,18 @@ function sendSummary(chatId) {
   let totalPrice = calculatePrice(session);
 
   const summaryMessage =
-    `\ud83d\udce9 *Новый опрос*\n` +
-    `\ud83d\udc64 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-    `\ud83d\udcc5 *Дата*: ${session.date}\n` +
-    `\ud83c\udf89 *Событие*: ${session.event}\n` +
-    `\ud83d\udc65 *Гости*: ${session.guests}\n` +
-    `\ud83d\udccd *Локация*: ${session.location}\n` +
+    `📩 *Новый опрос*\n` +
+    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+    `📅 *Дата*: ${session.date}\n` +
+    `🎉 *Событие*: ${session.event}\n` +
+    `👥 *Гости*: ${session.guests}\n` +
+    `📍 *Локация*: ${session.location}\n` +
     `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `\ud83d\udcb0 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `\ud83d\udd2e *3 слова про мероприятие*: ${session.words}\n` +
-    `\ud83c\udfa8 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `\ud83c\udf81 *Выбранный бонус*: ${session.bonus}\n` +
-    `\ud83d\udcb5 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
   bot.sendMessage(
     chatId,
