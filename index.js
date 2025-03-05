@@ -198,26 +198,6 @@ bot.on("callback_query", (query) => {
     userSessions[chatId] = { userId, username, isSurveyActive: true };
     askDate(chatId);
   }
-
-  if (query.data === "oper_mes") {
-    const session = userSessions[chatId];
-    let totalPrice = calculatePrice(session);
-    const summaryMessage =
-      `📩 *Новый опрос*\n` +
-      `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-      `📅 *Дата*: ${session.date}\n` +
-      `🎉 *Событие*: ${session.event}\n` +
-      `👥 *Гости*: ${session.guests}\n` +
-      `📍 *Локация*: ${session.location}\n` +
-      `⏳ *Длительность*: ${session.hours} ч.\n` +
-      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-      `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
-
-    bot.sendMessage(adminChatId, summaryMessage);
-  }
 });
 
 bot.onText(/\/survey/, async (msg) => {
@@ -326,7 +306,20 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
-  // Отправляем пользователю итоговую стоимость
+  const summaryMessage =
+    `📩 *Новый опрос*\n` +
+    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+    `📅 *Дата*: ${session.date}\n` +
+    `🎉 *Событие*: ${session.event}\n` +
+    `👥 *Гости*: ${session.guests}\n` +
+    `📍 *Локация*: ${session.location}\n` +
+    `⏳ *Длительность*: ${session.hours} ч.\n` +
+    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
   bot.sendMessage(
     chatId,
     `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
@@ -339,7 +332,41 @@ function sendSummary(chatId) {
       },
     }
   );
+
+  // Отправляем админу информацию о запросе
+  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
 }
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
+
+  if (query.data === "oper_mes") {
+    // Проверяем, отправлялось ли уже сообщение админу
+    if (pendingRequests[userId]) {
+      return bot.answerCallbackQuery(query.id, {
+        text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
+        show_alert: true,
+      });
+    }
+
+    // Отмечаем, что заявка уже отправлена
+    pendingRequests[userId] = true;
+
+    // Отправляем пользователю сообщение
+    bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
+
+    // Отправляем админу уведомление
+    bot.sendMessage(
+      adminChatId,
+      `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
+      { parse_mode: "Markdown" }
+    );
+
+    bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
+  }
+});
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
