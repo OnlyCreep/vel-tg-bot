@@ -198,6 +198,28 @@ bot.on("callback_query", (query) => {
     userSessions[chatId] = { userId, username, isSurveyActive: true };
     askDate(chatId);
   }
+
+  if (query.data === "oper_mes") {
+    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
+
+    const session = userSessions[chatId];
+    let totalPrice = calculatePrice(session);
+    const summaryMessage =
+      `📩 *Новый опрос*\n` +
+      `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+      `📅 *Дата*: ${session.date}\n` +
+      `🎉 *Событие*: ${session.event}\n` +
+      `👥 *Гости*: ${session.guests}\n` +
+      `📍 *Локация*: ${session.location}\n` +
+      `⏳ *Длительность*: ${session.hours} ч.\n` +
+      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+      `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
+    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+  }
 });
 
 bot.onText(/\/survey/, async (msg) => {
@@ -320,34 +342,6 @@ function sendSummary(chatId) {
     }
   );
 }
-
-bot.on("callback_query", (query) => {
-  const chatId = query.message.chat.id; // Переносим наверх
-  if (query.data === "oper_mes") {
-    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
-
-    const session = userSessions[chatId];
-    if (!session) return; // Проверяем, что сессия существует
-
-    let totalPrice = calculatePrice(session);
-    const summaryMessage =
-      `📩 *Новый опрос*\n` +
-      `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-      `📅 *Дата*: ${session.date}\n` +
-      `🎉 *Событие*: ${session.event}\n` +
-      `👥 *Гости*: ${session.guests}\n` +
-      `📍 *Локация*: ${session.location}\n` +
-      `⏳ *Длительность*: ${session.hours} ч.\n` +
-      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-      `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
-
-    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
-  }
-});
-
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
