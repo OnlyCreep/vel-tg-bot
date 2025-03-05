@@ -218,7 +218,7 @@ bot.on("callback_query", (query) => {
       `🎁 *Выбранный бонус*: ${session.bonus}\n` +
       `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+      return bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
   }
 });
 
