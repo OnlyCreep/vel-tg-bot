@@ -187,7 +187,6 @@ bot.on("callback_query", (query) => {
   const now = Date.now();
 
   if (query.data === "start_survey") {
-    bot.sendMessage(adminChatId, "тест");
     if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
       return bot.sendMessage(
         chatId,
@@ -201,8 +200,6 @@ bot.on("callback_query", (query) => {
   }
 
   if (query.data === "oper_mes") {
-    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
-
     const session = userSessions[chatId];
     let totalPrice = calculatePrice(session);
     const summaryMessage =
@@ -219,7 +216,8 @@ bot.on("callback_query", (query) => {
       `🎁 *Выбранный бонус*: ${session.bonus}\n` +
       `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-      return bot.sendMessage(adminChatId, summaryMessage);
+    bot.sendMessage(1032236389, "cas");
+    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
   }
 });
 
