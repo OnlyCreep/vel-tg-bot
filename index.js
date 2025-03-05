@@ -322,12 +322,13 @@ function sendSummary(chatId) {
 }
 
 bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id; // Переносим наверх
   if (query.data === "oper_mes") {
-    bot.sendMessage(
-      chatId, `Скоро с вами свяжутся`
-    );
-    const chatId = query.message.chat.id;
+    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
+
     const session = userSessions[chatId];
+    if (!session) return; // Проверяем, что сессия существует
+
     let totalPrice = calculatePrice(session);
     const summaryMessage =
       `📩 *Новый опрос*\n` +
@@ -346,6 +347,7 @@ bot.on("callback_query", (query) => {
     bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
   }
 });
+
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
