@@ -316,15 +316,24 @@ bot.on("callback_query", (query) => {
   const userId = query.from.id;
   const username = query.from.username || "Неизвестный";
 
+  if (!userSessions[chatId]) {
+    console.error("Ошибка: Нет активной сессии для этого чата.");
+    return;
+  }
+
+  const session = userSessions[chatId];
+
   if (query.data === "contact_person") {
-    bot.sendMessage(chatId, "Мы услышали вас, скоро с вами свяжутся.");
-    
-    if (!userSessions[chatId]) {
-      console.error("Ошибка: Нет активной сессии для этого чата.");
+    if (session.requestSent) {
+      bot.sendMessage(chatId, "📢 Мы уже отправили ваш запрос! Пожалуйста, подождите, с вами скоро свяжутся.");
       return;
     }
-    
-    const session = userSessions[chatId];
+
+    // Устанавливаем флаг, что запрос отправлен
+    session.requestSent = true;
+
+    bot.sendMessage(chatId, "Мы услышали вас, скоро с вами свяжутся.");
+
     let totalPrice = calculatePrice(session);
     const summaryMessage =
       `\uD83D\uDCEC *Новый опрос*\n` +
