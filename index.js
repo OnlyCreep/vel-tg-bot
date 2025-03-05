@@ -200,8 +200,6 @@ bot.on("callback_query", (query) => {
   }
 
   if (query.data === "oper_mes") {
-    bot.sendMessage(chatId, `Скоро с вами свяжутся`);
-
     const session = userSessions[chatId];
     let totalPrice = calculatePrice(session);
     const summaryMessage =
