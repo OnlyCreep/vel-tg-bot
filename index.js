@@ -297,70 +297,57 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
-  // Отправляем пользователю ориентировочную стоимость с дополнительным сообщением
-  bot.sendMessage(
-    chatId,
-    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Свяжи с человеком", callback_data: "contact_person" }],
-        ],
-      },
-    }
-  );
+  const summaryMessage =
+    `\ud83d\udce9 *Новый опрос*\n` +
+    `\ud83d\udc64 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+    `\ud83d\udcc5 *Дата*: ${session.date}\n` +
+    `\ud83c\udf89 *Событие*: ${session.event}\n` +
+    `\ud83d\udc65 *Гости*: ${session.guests}\n` +
+    `\ud83d\udccd *Локация*: ${session.location}\n` +
+    `⏳ *Длительность*: ${session.hours} ч.\n` +
+    `\ud83d\udcb0 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `\ud83d\udd2e *3 слова про мероприятие*: ${session.words}\n` +
+    `\ud83c\udfae *Выбранный стиль*: ${session.selectedImage}\n` +
+    `\ud83c\udf81 *Выбранный бонус*: ${session.bonus}\n` +
+    `\ud83d\udcb5 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
+  const priceMessage = `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
+    "Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.";
+
+  bot.sendMessage(chatId, priceMessage, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Свяжите меня с человеком", callback_data: "contact_admin" }],
+      ],
+    },
+  });
 }
 
 bot.on("callback_query", (query) => {
   const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
+  if (query.data === "contact_admin") {
+    const session = userSessions[chatId];
+    if (!session) return;
 
-  console.log("Обработчик callback_query сработал:", query.data);
-
-  if (!userSessions[chatId]) {
-    console.error(`Ошибка: Нет активной сессии для чата ${chatId}`);
-    return;
-  }
-
-  const session = userSessions[chatId];
-
-  if (query.data === "contact_person") {
-    if (session.requestSent) {
-      bot.sendMessage(chatId, "📢 Мы уже отправили ваш запрос! Пожалуйста, подождите, с вами скоро свяжутся.");
-      return;
-    }
-
-    session.requestSent = true;
-
-    bot.sendMessage(chatId, "Мы услышали вас, скоро с вами свяжутся.");
-
-    let totalPrice = calculatePrice(session);
-    const safeUsername = (session.username || "Неизвестный").replace(/[_*[\]()~`>#+-=|{}.!]/g, "\\$&");
-
-    const summaryMessage = 
-      `📩 *Новый опрос*\n` +
-      `👤 *Пользователь*: [@${safeUsername}](tg://user?id=${session.userId})\n` +
-      `📅 *Дата*: ${session.date}\n` +
-      `🎉 *Событие*: ${session.event}\n` +
-      `👥 *Гости*: ${session.guests}\n` +
-      `📍 *Локация*: ${session.location}\n` +
+    const summaryMessage =
+      `\ud83d\udce9 *Новый запрос на связь*\n` +
+      `\ud83d\udc64 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+      `\ud83d\udcc5 *Дата*: ${session.date}\n` +
+      `\ud83c\udf89 *Событие*: ${session.event}\n` +
+      `\ud83d\udc65 *Гости*: ${session.guests}\n` +
+      `\ud83d\udccd *Локация*: ${session.location}\n` +
       `⏳ *Длительность*: ${session.hours} ч.\n` +
-      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-      `✨ *3 слова про мероприятие*: ${session.words}\n` +
-      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+      `\ud83d\udcb0 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+      `\ud83d\udd2e *3 слова про мероприятие*: ${session.words}\n` +
+      `\ud83c\udfae *Выбранный стиль*: ${session.selectedImage}\n` +
+      `\ud83c\udf81 *Выбранный бонус*: ${session.bonus}\n` +
+      `\ud83d\udcb5 *Итоговая стоимость*: ${calculatePrice(session).toLocaleString()}₽`;
 
-    if (adminChatId) {
-      console.log("Отправляем админу:", adminChatId);
-      bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "MarkdownV2" })
-        .catch(err => console.error("Ошибка при отправке админу:", err.message));
-    } else {
-      console.error("Ошибка: adminChatId не задан.");
-    }
+    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "✅ Ваш запрос отправлен, скоро с вами свяжутся!");
   }
 });
+
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
