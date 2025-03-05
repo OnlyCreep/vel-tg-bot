@@ -306,45 +306,55 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
-  // Отправляем пользователю итоговую стоимость
+  const summaryMessage =
+      `📩 *Новый опрос*\n` +
+      `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+      `📅 *Дата*: ${session.date}\n` +
+      `🎉 *Событие*: ${session.event}\n` +
+      `👥 *Гости*: ${session.guests}\n` +
+      `📍 *Локация*: ${session.location}\n` +
+      `⏳ *Длительность*: ${session.hours} ч.\n` +
+      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+      `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
   bot.sendMessage(
-    chatId,
-    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
-    `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`
+      chatId,
+      `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
+      `Я старался сэкономить наше время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
+      {
+          reply_markup: {
+              inline_keyboard: [
+                  [{ text: "Свяжите меня с человеком", callback_data: "contact_operator" }]
+              ]
+          }
+      }
   );
 
-  const options = {
-    reply_markup: {
-        inline_keyboard: [
-            [{ text: "Свяжите меня с человеком", callback_data: "contact_operator" }]
-        ]
-    }
-  };
-  
+  // Отправляем администратору уведомление
+  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
 }
 
-bot.on('callback_query', (query) => {
+// **Обработчик всех callback-кнопок**
+bot.on("callback_query", (query) => {
   const chatId = query.message.chat.id;
-  const summaryMessage =
-  `📩 *Новый опрос*\n` +
-  `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-  `📅 *Дата*: ${session.date}\n` +
-  `🎉 *Событие*: ${session.event}\n` +
-  `👥 *Гости*: ${session.guests}\n` +
-  `📍 *Локация*: ${session.location}\n` +
-  `⏳ *Длительность*: ${session.hours} ч.\n` +
-  `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-  `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-  `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-  `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-  `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+  const userId = query.from.id;
 
   if (query.data === "contact_operator") {
       bot.sendMessage(chatId, "Оператор скоро свяжется с вами!");
-      
-      // Уведомляем администратора о запросе
-      bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+
+      // Проверяем, есть ли у пользователя сессия
+      const session = userSessions[chatId];
+      if (session) {
+          const summaryMessage =
+              `📩 *Запрос на связь!*\n` +
+              `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+              `💬 *Запрос*: Свяжитесь с человеком.`;
+
+          bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+      }
   }
 
   bot.answerCallbackQuery(query.id);
