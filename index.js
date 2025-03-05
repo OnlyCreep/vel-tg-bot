@@ -178,26 +178,6 @@ bot.onText(/\/start/, async (msg) => {
   );
 });
 
-bot.on("callback_query", (query) => {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
-  const now = Date.now();
-
-  if (query.data === "start_survey") {
-    if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
-      return bot.sendMessage(
-        chatId,
-        "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
-      );
-    }
-
-    lastSurveyTime[userId] = now;
-    userSessions[chatId] = { userId, username, isSurveyActive: true };
-    askDate(chatId);
-  }
-});
-
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -297,7 +277,30 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
-  const summaryMessage =
+  // Отправляем пользователю итоговую стоимость
+  bot.sendMessage(
+    chatId,
+    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
+    `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }]],
+      },
+    }
+  );
+
+  // Отправляем админу информацию о запросе
+
+}
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
+  const now = Date.now();
+  const session = userSessions[chatId];
+  let totalPrice = calculatePrice(session);
+  let summaryMessage =
     `📩 *Новый опрос*\n` +
     `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
     `📅 *Дата*: ${session.date}\n` +
@@ -311,25 +314,27 @@ function sendSummary(chatId) {
     `🎁 *Выбранный бонус*: ${session.bonus}\n` +
     `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-  // Отправляем пользователю итоговую стоимость
-  bot.sendMessage(
-    chatId,
-    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
-    `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-    {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Свяжите меня с человеком", callback_data: "start_survey" }]],
-      },
+  if (query.data === "start_survey") {
+    if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
+      return bot.sendMessage(
+        chatId,
+        "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
+      );
     }
-  );
 
-  // Отправляем админу информацию о запросе
-  bot.sendMessage(
-    adminChatId,
-    summaryMessage,
-    { parse_mode: "Markdown" }
-  );
-}
+    lastSurveyTime[userId] = now;
+    userSessions[chatId] = { userId, username, isSurveyActive: true };
+    askDate(chatId);
+  }
+
+  if (query.data === "oper_mes") {
+    bot.sendMessage(
+      adminChatId,
+      summaryMessage,
+      { parse_mode: "Markdown" }
+    );
+  }
+});
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
