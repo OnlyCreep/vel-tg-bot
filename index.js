@@ -187,6 +187,7 @@ bot.on("callback_query", (query) => {
   const now = Date.now();
 
   if (query.data === "start_survey") {
+    bot.sendMessage(adminChatId, "тест");
     if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
       return bot.sendMessage(
         chatId,
@@ -361,7 +362,6 @@ bot.on("message", async (msg) => {
   } else if (!session.event) {
     if (!eventOptions.includes(text)) {
       askEvent(chatId, true);
-      bot.sendMessage(adminChatId, "тест");
       return;
     }
     session.event = text;
