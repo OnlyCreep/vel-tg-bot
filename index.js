@@ -172,10 +172,32 @@ bot.onText(/\/start/, async (msg) => {
     "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "Поехали🚂", callback_data: "start_survey" }]],
+        inline_keyboard: [
+          [{ text: "Поехали🚂", callback_data: "start_survey" }],
+        ],
       },
     }
   );
+});
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
+  const now = Date.now();
+
+  if (query.data === "start_survey") {
+    if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
+      return bot.sendMessage(
+        chatId,
+        "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
+      );
+    }
+
+    lastSurveyTime[userId] = now;
+    userSessions[chatId] = { userId, username, isSurveyActive: true };
+    askDate(chatId);
+  }
 });
 
 bot.onText(/\/survey/, async (msg) => {
@@ -188,7 +210,12 @@ bot.onText(/\/survey/, async (msg) => {
   await deletePreviousBotMessages(chatId);
 
   // Удаляем старую сессию и создаем новую
-  userSessions[chatId] = { userId, username, isSurveyActive: true, botMessages: [] };
+  userSessions[chatId] = {
+    userId,
+    username,
+    isSurveyActive: true,
+    botMessages: [],
+  };
 
   lastSurveyTime[userId] = now;
 
@@ -233,7 +260,9 @@ bot.on("message", (msg) => {
     "Хотите пройти короткий квиз и узнать стоимость вашего мероприятия?",
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "Поехали🚂", callback_data: "start_survey" }]],
+        inline_keyboard: [
+          [{ text: "Поехали🚂", callback_data: "start_survey" }],
+        ],
       },
     }
   );
@@ -281,58 +310,40 @@ function sendSummary(chatId) {
   bot.sendMessage(
     chatId,
     `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
-    `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
+      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }]],
+        inline_keyboard: [
+          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
+        ],
       },
     }
   );
-
-  // Отправляем админу информацию о запросе
-
 }
 
 bot.on("callback_query", (query) => {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
-  const now = Date.now();
-  const session = userSessions[chatId];
-  let totalPrice = calculatePrice(session);
-  let summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
-
-  if (query.data === "start_survey") {
-    if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
-      return bot.sendMessage(
-        chatId,
-        "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
-      );
-    }
-
-    lastSurveyTime[userId] = now;
-    userSessions[chatId] = { userId, username, isSurveyActive: true };
-    askDate(chatId);
-  }
-
   if (query.data === "oper_mes") {
     bot.sendMessage(
-      adminChatId,
-      summaryMessage,
-      { parse_mode: "Markdown" }
+      chatId, `Скоро с вами свяжутся`
     );
+    const chatId = query.message.chat.id;
+    const session = userSessions[chatId];
+    let totalPrice = calculatePrice(session);
+    const summaryMessage =
+      `📩 *Новый опрос*\n` +
+      `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+      `📅 *Дата*: ${session.date}\n` +
+      `🎉 *Событие*: ${session.event}\n` +
+      `👥 *Гости*: ${session.guests}\n` +
+      `📍 *Локация*: ${session.location}\n` +
+      `⏳ *Длительность*: ${session.hours} ч.\n` +
+      `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+      `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+      `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+      `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+      `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
+    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
   }
 });
 
@@ -374,7 +385,10 @@ bot.on("message", async (msg) => {
     askHours(chatId);
   } else if (!session.hours) {
     if (isNaN(text) || parseInt(text) <= 0) {
-      bot.sendMessage(chatId, "⛔ Введите корректное количество часов цифрами!");
+      bot.sendMessage(
+        chatId,
+        "⛔ Введите корректное количество часов цифрами!"
+      );
       return;
     }
     session.hours = parseInt(text);
@@ -400,8 +414,9 @@ bot.on("message", async (msg) => {
         "1.5 часа фотографа",
         "1.5 часа рилсмейкера",
       ].includes(text)
-    ) return;
-    
+    )
+      return;
+
     session.bonus = text;
     bot.sendMessage(
       chatId,
@@ -467,5 +482,8 @@ function askBudget(chatId) {
 }
 
 function askWords(chatId) {
-  sendBotMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?");
+  sendBotMessage(
+    chatId,
+    "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?"
+  );
 }
