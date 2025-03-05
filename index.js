@@ -306,60 +306,48 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
-  const summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+  // Отправляем пользователю итоговую стоимость
 
   bot.sendMessage(
     chatId,
     `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
-      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-    {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Свяжите меня с человеком", callback_data: "contact_admin" }]],
-      },
-    }
+    `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`
   );
 
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+  const options = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: "Свяжите меня с человеком", callback_data: "contact_operator" }]
+        ]
+    }
+  };
+  
 }
 
-bot.on("callback_query", (query) => {
+bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
+  const summaryMessage =
+  `📩 *Новый опрос*\n` +
+  `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+  `📅 *Дата*: ${session.date}\n` +
+  `🎉 *Событие*: ${session.event}\n` +
+  `👥 *Гости*: ${session.guests}\n` +
+  `📍 *Локация*: ${session.location}\n` +
+  `⏳ *Длительность*: ${session.hours} ч.\n` +
+  `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+  `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+  `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+  `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+  `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-  if (query.data === "contact_admin") {
-    const session = userSessions[chatId];
-    let totalPrice = calculatePrice(session);
-
-    const summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
-
-    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
-    bot.sendMessage(chatId, "✅ Ваш запрос отправлен администратору. Ожидайте связи!");
+  if (query.data === "contact_operator") {
+      bot.sendMessage(chatId, "Оператор скоро свяжется с вами!");
+      
+      // Уведомляем администратора о запросе
+      bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
   }
+
+  bot.answerCallbackQuery(query.id);
 });
 
 bot.on("message", async (msg) => {
