@@ -307,6 +307,43 @@ function sendSummary(chatId) {
   let totalPrice = calculatePrice(session);
 
   const summaryMessage =
+    `\ud83d\udce9 *Новый опрос*\n` +
+    `\ud83d\udc64 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+    `\ud83d\udcc5 *Дата*: ${session.date}\n` +
+    `\ud83c\udf89 *Событие*: ${session.event}\n` +
+    `\ud83d\udc65 *Гости*: ${session.guests}\n` +
+    `\ud83d\udccd *Локация*: ${session.location}\n` +
+    `⏳ *Длительность*: ${session.hours} ч.\n` +
+    `\ud83d\udcb0 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `\ud83d\udd2e *3 слова про мероприятие*: ${session.words}\n` +
+    `\ud83c\udfa8 *Выбранный стиль*: ${session.selectedImage}\n` +
+    `\ud83c\udf81 *Выбранный бонус*: ${session.bonus}\n` +
+    `\ud83d\udcb5 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
+
+  bot.sendMessage(
+    chatId,
+    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
+      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Свяжите меня с человеком", callback_data: "contact_admin" }]],
+      },
+    }
+  );
+
+  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+}
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
+
+  if (query.data === "contact_admin") {
+    const session = userSessions[chatId];
+    let totalPrice = calculatePrice(session);
+
+    const summaryMessage =
     `📩 *Новый опрос*\n` +
     `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
     `📅 *Дата*: ${session.date}\n` +
@@ -320,19 +357,10 @@ function sendSummary(chatId) {
     `🎁 *Выбранный бонус*: ${session.bonus}\n` +
     `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-  // Отправляем пользователю итоговую стоимость
-
-  bot.sendMessage(
-    chatId,
-    `
-    ✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n` +
-      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.
-    `
-  );
-
-  // Отправляем админу информацию о запросе
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
-}
+    bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "✅ Ваш запрос отправлен администратору. Ожидайте связи!");
+  }
+});
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
