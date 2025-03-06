@@ -151,7 +151,7 @@ function askGuests(chatId) {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль](tg://user?id=${userId})`;
+  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль]tg://user?id=${userId}`;
 
   // Удаляем все старые сообщения бота перед перезапуском
   await deletePreviousBotMessages(chatId);
@@ -338,7 +338,7 @@ function sendPackageImages(chatId, eventType) {
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
+  const username = query.from.username ? `@${query.from.username}` : `[Профиль](tg://user?id=${userId})`;
 
   switch (query.data) {
     case "start_survey":
@@ -402,7 +402,7 @@ function sendSummary(chatId) {
 
   const summaryMessage =
     `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
+    `👤 *Пользователь*: [@${session.username}]tg://user?id=${session.userId}\n` +
     `📅 *Дата*: ${session.date}\n` +
     `🎉 *Событие*: ${session.event}\n` +
     `👥 *Гости*: ${session.guests}\n` +
