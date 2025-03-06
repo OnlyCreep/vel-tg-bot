@@ -402,7 +402,7 @@ function sendSummary(chatId) {
 
   const summaryMessage =
     `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}]tg://user?id=${session.userId}\n` +
+    `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
     `📅 *Дата*: ${session.date}\n` +
     `🎉 *Событие*: ${session.event}\n` +
     `👥 *Гости*: ${session.guests}\n` +
