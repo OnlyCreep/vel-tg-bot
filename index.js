@@ -118,18 +118,7 @@ const packageImages = {
 };
 
 // Функция отправки кнопок "Интересные пакетные предложения"
-function sendPackageOptions(chatId) {
-  bot.sendMessage(chatId, "Выберите интересующее вас пакетное предложение:", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "Корпоратив", callback_data: "package_corporate" }],
-        [{ text: "Выпускной", callback_data: "package_graduation" }],
-        [{ text: "День рождения", callback_data: "package_birthday" }],
-        [{ text: "Свадьба", callback_data: "package_wedding" }],
-      ],
-    },
-  });
-}
+
 
 // Функция отправки изображений
 function sendPackageImages(chatId, eventType) {
@@ -363,6 +352,19 @@ function askBonusSelection(chatId) {
       },
     }
   );
+}
+
+function sendPackageOptions(chatId) {
+  bot.sendMessage(chatId, "Выберите интересующее вас пакетное предложение:", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Корпоратив", callback_data: "package_corporate" }],
+        [{ text: "Выпускной", callback_data: "package_graduation" }],
+        [{ text: "День рождения", callback_data: "package_birthday" }],
+        [{ text: "Свадьба", callback_data: "package_wedding" }],
+      ],
+    },
+  });
 }
 
 function sendSummary(chatId) {
