@@ -151,7 +151,9 @@ function askGuests(chatId) {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль]tg://user?id=${userId}`;
+  const username = msg.from.username 
+  ? `@${msg.from.username}` 
+  : `<a href="tg://user?id=${userId}">Профиль</a>`;
 
   // Удаляем все старые сообщения бота перед перезапуском
   await deletePreviousBotMessages(chatId);
@@ -185,7 +187,9 @@ bot.onText(/\/start/, async (msg) => {
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль](tg://user?id=${userId})`;
+  const username = msg.from.username 
+  ? `@${msg.from.username}` 
+  : `<a href="tg://user?id=${userId}">Профиль</a>`;
   const now = Date.now();
 
   // Удаляем старые сообщения бота, если есть
@@ -402,7 +406,7 @@ function sendSummary(chatId) {
 
   const summaryMessage =
     `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
+    `📩 <b>Новый опрос</b>\n\n👤 <b>Пользователь:</b> ${username}\n` +
     `📅 *Дата*: ${session.date}\n` +
     `🎉 *Событие*: ${session.event}\n` +
     `👥 *Гости*: ${session.guests}\n` +
