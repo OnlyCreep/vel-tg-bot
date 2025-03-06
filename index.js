@@ -311,7 +311,7 @@ function sendPackageOptions(chatId) {
 }
 
 // Функция отправки изображений
-function sendPackageImages(chatId, eventType) {
+async function sendPackageImages(chatId, eventType) {
   if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
 
   const images = packageImages[eventType];
@@ -320,12 +320,20 @@ function sendPackageImages(chatId, eventType) {
     return bot.sendMessage(chatId, "❌ Изображения не найдены.");
   }
 
+  // Проверяем, существуют ли файлы
+  images.forEach((imgPath) => {
+    if (!fs.existsSync(imgPath)) {
+      console.error(`Файл не найден: ${imgPath}`);
+    }
+  });
+
   const mediaGroup = images.map((imgPath) => ({
     type: "photo",
     media: fs.createReadStream(imgPath),
   }));
 
-  bot.sendMediaGroup(chatId, mediaGroup).then(() => {
+  try {
+    await bot.sendMediaGroup(chatId, mediaGroup);
     bot.sendMessage(chatId, "🔹 Узнать больше:", {
       reply_markup: {
         inline_keyboard: [
@@ -333,7 +341,10 @@ function sendPackageImages(chatId, eventType) {
         ],
       },
     });
-  });
+  } catch (error) {
+    console.error("Ошибка при отправке изображений:", error.message);
+    bot.sendMessage(chatId, "❌ Ошибка при загрузке изображений.");
+  }
 }
 
 // ГЛАВНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK-КНОПОК
@@ -345,79 +356,70 @@ bot.on("callback_query", async (query) => {
   // Логирование данных
   console.log(`Callback received: ${query.data} from user ${userId}`);
 
-  switch (query.data) {
-    case "start_survey":
-      if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
-        return bot.answerCallbackQuery(query.id, {
-          text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
-          show_alert: true,
-        });
-      }
-      lastSurveyTime[userId] = Date.now();
-      userSessions[chatId] = { userId, username, isSurveyActive: true };
-      askDate(chatId);
-      break;
+  try {
+    switch (query.data) {
+      case "start_survey":
+        if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
+          return bot.answerCallbackQuery(query.id, {
+            text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
+            show_alert: true,
+          });
+        }
+        lastSurveyTime[userId] = Date.now();
+        userSessions[chatId] = { userId, username, isSurveyActive: true };
+        askDate(chatId);
+        break;
 
-    case "show_packages":
-      sendPackageOptions(chatId);
-      break;
+      case "show_packages":
+        sendPackageOptions(chatId);
+        break;
 
-    case "package_corporate":
-      sendPackageImages(chatId, "Корпоратив");
-      break;
+      case "package_corporate":
+        sendPackageImages(chatId, "Корпоратив");
+        break;
 
-    case "package_graduation":
-      sendPackageImages(chatId, "Выпускной");
-      break;
+      case "package_graduation":
+        sendPackageImages(chatId, "Выпускной");
+        break;
 
-    case "package_birthday":
-      sendPackageImages(chatId, "День рождения");
-      break;
+      case "package_birthday":
+        sendPackageImages(chatId, "День рождения");
+        break;
 
-    case "package_wedding":
-      sendPackageImages(chatId, "Свадьба");
-      break;
+      case "package_wedding":
+        sendPackageImages(chatId, "Свадьба");
+        break;
 
-    case "oper_mes":
-      if (pendingRequests[userId]) {
-        return bot.answerCallbackQuery(query.id, {
-          text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
-          show_alert: true,
-        });
-      }
+      case "oper_mes":
+        if (pendingRequests[userId]) {
+          return bot.answerCallbackQuery(query.id, {
+            text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
+            show_alert: true,
+          });
+        }
 
-      pendingRequests[userId] = true;
-      await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
-      await bot.sendMessage(
-        adminChatId,
-        `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
-        { parse_mode: "Markdown" }
-      );
-      bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
-      break;
+        pendingRequests[userId] = true;
+        await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
+        await bot.sendMessage(
+          adminChatId,
+          `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
+          { parse_mode: "Markdown" }
+        );
+        break;
+    }
+  } catch (error) {
+    console.error("Ошибка в обработчике callback_query:", error.message);
+  } finally {
+    await bot.answerCallbackQuery(query.id); // Всегда подтверждаем callback, чтобы Telegram не зависал
   }
 });
 
 // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
 function sendSummary(chatId) {
-  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
+  if (!userSessions[chatId]) return;
 
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
-
-  const summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [@${session.username}](tg://user?id=${session.userId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
   bot.sendMessage(
     chatId,
@@ -432,9 +434,6 @@ function sendSummary(chatId) {
       },
     }
   );
-
-  // Отправляем админу информацию о запросе
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
 }
 
 let pendingRequests = {}; // Объект для отслеживания заявок
