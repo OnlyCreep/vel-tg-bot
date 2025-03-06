@@ -107,57 +107,7 @@ function getBaseRate(dateString) {
     декабрь: 12,
   };
 
-  const fs = require("fs");
-
 // Пакетные предложения с путями к изображениям
-const packageImages = {
-  Корпоратив: ["./images/corporate1.jpg"], // 1 фото
-  Выпускной: ["./images/graduation1.jpg", "./images/graduation2.jpg"], // 2 фото
-  "День рождения": ["./images/birthday1.jpg"], // 1 фото
-  Свадьба: ["./images/wedding1.jpg", "./images/wedding2.jpg"], // 2 фото
-};
-
-// Функция отправки кнопок "Интересные пакетные предложения"
-
-
-// Функция отправки изображений
-function sendPackageImages(chatId, eventType) {
-  const images = packageImages[eventType];
-
-  if (!images || images.length === 0) {
-    return bot.sendMessage(chatId, "Изображения не найдены.");
-  }
-
-  const mediaGroup = images.map((imgPath) => ({
-    type: "photo",
-    media: fs.createReadStream(imgPath),
-  }));
-
-  bot.sendMediaGroup(chatId, mediaGroup).then(() => {
-    bot.sendMessage(chatId, "🔹 Узнать больше:", {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-        ],
-      },
-    });
-  });
-}
-
-// Обработчик кнопок для выбора пакетных предложений
-bot.on("callback_query", (query) => {
-  const chatId = query.message.chat.id;
-
-  if (query.data === "package_corporate") {
-    sendPackageImages(chatId, "Корпоратив");
-  } else if (query.data === "package_graduation") {
-    sendPackageImages(chatId, "Выпускной");
-  } else if (query.data === "package_birthday") {
-    sendPackageImages(chatId, "День рождения");
-  } else if (query.data === "package_wedding") {
-    sendPackageImages(chatId, "Свадьба");
-  }
-});
 
   let date = parseDate(dateString);
   let monthName =
@@ -354,20 +304,83 @@ function askBonusSelection(chatId) {
   );
 }
 
+const fs = require("fs");
+
+// Пакетные предложения с путями к изображениям
+const packageImages = {
+  Корпоратив: ["./images/corporate1.jpg"], // 1 фото
+  Выпускной: ["./images/graduation1.jpg", "./images/graduation2.jpg"], // 2 фото
+  "День рождения": ["./images/birthday1.jpg"], // 1 фото
+  Свадьба: ["./images/wedding1.jpg", "./images/wedding2.jpg"], // 2 фото
+};
+
+// Функция отправки кнопок "Интересные пакетные предложения"
 function sendPackageOptions(chatId) {
+  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
+
   bot.sendMessage(chatId, "Выберите интересующее вас пакетное предложение:", {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Корпоратив", callback_data: "package_corporate" }],
-        [{ text: "Выпускной", callback_data: "package_graduation" }],
-        [{ text: "День рождения", callback_data: "package_birthday" }],
-        [{ text: "Свадьба", callback_data: "package_wedding" }],
+        [{ text: "Корпоратив", callback_data: `package_corporate_${chatId}` }],
+        [{ text: "Выпускной", callback_data: `package_graduation_${chatId}` }],
+        [{ text: "День рождения", callback_data: `package_birthday_${chatId}` }],
+        [{ text: "Свадьба", callback_data: `package_wedding_${chatId}` }],
       ],
     },
   });
 }
 
+// Функция отправки изображений
+function sendPackageImages(chatId, eventType) {
+  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
+
+  const images = packageImages[eventType];
+
+  if (!images || images.length === 0) {
+    return bot.sendMessage(chatId, "Изображения не найдены.");
+  }
+
+  const mediaGroup = images.map((imgPath) => ({
+    type: "photo",
+    media: fs.createReadStream(imgPath),
+  }));
+
+  bot.sendMediaGroup(chatId, mediaGroup).then(() => {
+    bot.sendMessage(chatId, "🔹 Узнать больше:", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Свяжите меня с человеком", callback_data: `oper_mes_${chatId}` }],
+        ],
+      },
+    });
+  });
+}
+
+// Обработчик кнопок для выбора пакетных предложений
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+
+  // Проверяем, относится ли кнопка к этому пользователю
+  if (!query.data.includes(`_${chatId}`)) return;
+
+  if (query.data.startsWith("package_corporate")) {
+    sendPackageImages(chatId, "Корпоратив");
+  } else if (query.data.startsWith("package_graduation")) {
+    sendPackageImages(chatId, "Выпускной");
+  } else if (query.data.startsWith("package_birthday")) {
+    sendPackageImages(chatId, "День рождения");
+  } else if (query.data.startsWith("package_wedding")) {
+    sendPackageImages(chatId, "Свадьба");
+  } else if (query.data.startsWith("oper_mes")) {
+    bot.sendMessage(adminChatId, `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${userSessions[chatId].username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "✅ Ваша заявка отправлена! Скоро с вами свяжутся.");
+  }
+});
+
 function sendSummary(chatId) {
+  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
+
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
@@ -392,15 +405,15 @@ function sendSummary(chatId) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-          [{ text: "Интересные пакетные предложения", callback_data: "show_packages" }],
+          [{ text: "Свяжите меня с человеком", callback_data: `oper_mes_${chatId}` }],
+          [{ text: "Интересные пакетные предложения", callback_data: `show_packages_${chatId}` }],
         ],
       },
     }
   );
 
   bot.on("callback_query", (query) => {
-    if (query.data === "show_packages") {
+    if (query.data === `show_packages_${chatId}`) {
       sendPackageOptions(chatId);
     }
   });
