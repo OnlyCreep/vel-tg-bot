@@ -182,26 +182,6 @@ bot.onText(/\/start/, async (msg) => {
   );
 });
 
-bot.on("callback_query", (query) => {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
-  const now = Date.now();
-
-  if (query.data === "start_survey") {
-    if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
-      return bot.sendMessage(
-        chatId,
-        "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса."
-      );
-    }
-
-    lastSurveyTime[userId] = now;
-    userSessions[chatId] = { userId, username, isSurveyActive: true };
-    askDate(chatId);
-  }
-});
-
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -321,10 +301,10 @@ function sendPackageOptions(chatId) {
   bot.sendMessage(chatId, "Выберите интересующее вас пакетное предложение:", {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Корпоратив", callback_data: `package_corporate_${chatId}` }],
-        [{ text: "Выпускной", callback_data: `package_graduation_${chatId}` }],
-        [{ text: "День рождения", callback_data: `package_birthday_${chatId}` }],
-        [{ text: "Свадьба", callback_data: `package_wedding_${chatId}` }],
+        [{ text: "Корпоратив", callback_data: "package_corporate" }],
+        [{ text: "Выпускной", callback_data: "package_graduation" }],
+        [{ text: "День рождения", callback_data: "package_birthday" }],
+        [{ text: "Свадьба", callback_data: "package_wedding" }],
       ],
     },
   });
@@ -337,7 +317,7 @@ function sendPackageImages(chatId, eventType) {
   const images = packageImages[eventType];
 
   if (!images || images.length === 0) {
-    return bot.sendMessage(chatId, "Изображения не найдены.");
+    return bot.sendMessage(chatId, "❌ Изображения не найдены.");
   }
 
   const mediaGroup = images.map((imgPath) => ({
@@ -349,35 +329,76 @@ function sendPackageImages(chatId, eventType) {
     bot.sendMessage(chatId, "🔹 Узнать больше:", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: `oper_mes_${chatId}` }],
+          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
         ],
       },
     });
   });
 }
 
-// Обработчик кнопок для выбора пакетных предложений
-bot.on("callback_query", (query) => {
+// ГЛАВНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK-КНОПОК
+bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
+  const username = query.from.username || "Неизвестный";
 
-  // Проверяем, относится ли кнопка к этому пользователю
-  if (!query.data.includes(`_${chatId}`)) return;
+  // Логирование данных
+  console.log(`Callback received: ${query.data} from user ${userId}`);
 
-  if (query.data.startsWith("package_corporate")) {
-    sendPackageImages(chatId, "Корпоратив");
-  } else if (query.data.startsWith("package_graduation")) {
-    sendPackageImages(chatId, "Выпускной");
-  } else if (query.data.startsWith("package_birthday")) {
-    sendPackageImages(chatId, "День рождения");
-  } else if (query.data.startsWith("package_wedding")) {
-    sendPackageImages(chatId, "Свадьба");
-  } else if (query.data.startsWith("oper_mes")) {
-    bot.sendMessage(adminChatId, `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${userSessions[chatId].username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`, { parse_mode: "Markdown" });
-    bot.sendMessage(chatId, "✅ Ваша заявка отправлена! Скоро с вами свяжутся.");
+  switch (query.data) {
+    case "start_survey":
+      if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
+        return bot.answerCallbackQuery(query.id, {
+          text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
+          show_alert: true,
+        });
+      }
+      lastSurveyTime[userId] = Date.now();
+      userSessions[chatId] = { userId, username, isSurveyActive: true };
+      askDate(chatId);
+      break;
+
+    case "show_packages":
+      sendPackageOptions(chatId);
+      break;
+
+    case "package_corporate":
+      sendPackageImages(chatId, "Корпоратив");
+      break;
+
+    case "package_graduation":
+      sendPackageImages(chatId, "Выпускной");
+      break;
+
+    case "package_birthday":
+      sendPackageImages(chatId, "День рождения");
+      break;
+
+    case "package_wedding":
+      sendPackageImages(chatId, "Свадьба");
+      break;
+
+    case "oper_mes":
+      if (pendingRequests[userId]) {
+        return bot.answerCallbackQuery(query.id, {
+          text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
+          show_alert: true,
+        });
+      }
+
+      pendingRequests[userId] = true;
+      await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
+      await bot.sendMessage(
+        adminChatId,
+        `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
+        { parse_mode: "Markdown" }
+      );
+      bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
+      break;
   }
 });
 
+// ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
 function sendSummary(chatId) {
   if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
 
@@ -405,56 +426,18 @@ function sendSummary(chatId) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: `oper_mes_${chatId}` }],
-          [{ text: "Интересные пакетные предложения", callback_data: `show_packages_${chatId}` }],
+          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
+          [{ text: "Интересные пакетные предложения", callback_data: "show_packages" }],
         ],
       },
     }
   );
-
-  bot.on("callback_query", (query) => {
-    if (query.data === `show_packages_${chatId}`) {
-      sendPackageOptions(chatId);
-    }
-  });
 
   // Отправляем админу информацию о запросе
   bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
 }
 
 let pendingRequests = {}; // Объект для отслеживания заявок
-
-bot.on("callback_query", async (query) => {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const username = query.from.username || "Неизвестный";
-
-  if (query.data === "oper_mes") {
-    // Проверяем, отправлялась ли уже заявка
-    if (pendingRequests[userId]) {
-      return bot.answerCallbackQuery(query.id, {
-        text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
-        show_alert: true,
-      });
-    }
-
-    // Помечаем, что заявка уже отправлена
-    pendingRequests[userId] = true;
-
-    // Отправляем пользователю сообщение о том, что заявка отправлена
-    await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
-
-    // Отправляем админу уведомление
-    await bot.sendMessage(
-      adminChatId,
-      `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
-      { parse_mode: "Markdown" }
-    );
-
-    // Подтверждаем нажатие кнопки
-    await bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
-  }
-});
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
