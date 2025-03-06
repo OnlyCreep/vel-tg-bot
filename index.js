@@ -378,21 +378,26 @@ bot.on("callback_query", async (query) => {
       break;
 
     case "oper_mes":
-      if (pendingRequests[userId]) {
-        return bot.answerCallbackQuery(query.id, {
-          text: "⏳ Заявка уже была отправлена. Ожидайте связи!",
-          show_alert: true,
-        });
-      }
+      if (!username && !phoneNumber) {
+        // Если нет контактов, отправляем пользователю сообщение
+        bot.sendMessage(chatId, 
+            "❌ Мы не можем отправить ваши контактные данные. Свяжитесь напрямую: [Юрий](https://t.me/yuriy_vel)", 
+            { parse_mode: "Markdown" }
+        );
+    } else {
+        // Отправляем админу данные пользователя
+        const userContact = username || phoneNumber;
 
-      pendingRequests[userId] = true;
-      await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
-      await bot.sendMessage(
-        adminChatId,
-        `📩 *Новая заявка!*\n\n👤 *Пользователь*: ${username}\n💬 Нажал кнопку "Свяжите меня с человеком".`,
-        { parse_mode: "Markdown" }
-      );
-      bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
+        bot.sendMessage(
+            adminChatId,
+            `📩 <b>Новая заявка!</b>\n\n👤 <b>Пользователь:</b> ${userContact}\n💬 Нажал кнопку "Свяжите меня с человеком".`,
+            { parse_mode: "HTML" }
+        );
+
+        bot.sendMessage(chatId, "✅ Ваша заявка отправлена! Ожидайте связи.");
+    }
+
+    bot.answerCallbackQuery(query.id); // Закрываем всплывающее уведомление
       break;
   }
 });
@@ -400,16 +405,24 @@ bot.on("callback_query", async (query) => {
 // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
 function sendSummary(chatId, msg) {
   if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
-  const username = msg.from.username 
-        ? `@${msg.from.username}` 
-        : `<a href="tg://user?id=${userId}">Профиль</a>`;
-
-  const session = userSessions[chatId];
-  let totalPrice = calculatePrice(session);
-
-  const summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `📩 <b>Новый опрос</b>\n\n👤 <b>Пользователь:</b> ${username}\n` +
+    const username = msg.from.username ? `@${msg.from.username}` : null;
+    const phoneNumber = msg.contact && msg.contact.phone_number ? `📞 ${msg.contact.phone_number}` : null;
+    
+    let userContact;
+    if (username) {
+        userContact = username;
+    } else if (phoneNumber) {
+      userContact = phoneNumber;
+    } else {
+      userContact = "❌ Данных для связи нет";
+    }
+    
+    const session = userSessions[chatId];
+    let totalPrice = calculatePrice(session);
+    
+    const summaryMessage = 
+    `📩 <b>Новый опрос</b>\n\n` +
+    `👤 <b>Пользователь:</b> ${userContact}\n` +
     `📅 *Дата*: ${session.date}\n` +
     `🎉 *Событие*: ${session.event}\n` +
     `👥 *Гости*: ${session.guests}\n` +
