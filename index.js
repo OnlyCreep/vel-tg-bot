@@ -398,8 +398,11 @@ bot.on("callback_query", async (query) => {
 });
 
 // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
-function sendSummary(chatId) {
+function sendSummary(chatId, msg) {
   if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
+  const username = msg.from.username 
+        ? `@${msg.from.username}` 
+        : `<a href="tg://user?id=${userId}">Профиль</a>`;
 
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
