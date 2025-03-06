@@ -296,7 +296,6 @@ const packageImages = {
 
 // Функция отправки кнопок "Интересные пакетные предложения"
 function sendPackageOptions(chatId) {
-  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
 
   bot.sendMessage(chatId, "Выберите интересующее вас пакетное предложение:", {
     reply_markup: {
@@ -312,7 +311,6 @@ function sendPackageOptions(chatId) {
 
 // Функция отправки изображений
 function sendPackageImages(chatId, eventType) {
-  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
 
   const images = packageImages[eventType];
 
@@ -341,9 +339,6 @@ bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
   const username = query.from.username || "Неизвестный";
-
-  // Логирование данных
-  console.log(`Callback received: ${query.data} from user ${userId}`);
 
   switch (query.data) {
     case "start_survey":
