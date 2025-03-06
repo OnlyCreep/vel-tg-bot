@@ -151,7 +151,7 @@ function askGuests(chatId) {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const username = msg.from.username || "Неизвестный";
+  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль](tg://user?id=${userId})`;
 
   // Удаляем все старые сообщения бота перед перезапуском
   await deletePreviousBotMessages(chatId);
@@ -185,7 +185,7 @@ bot.onText(/\/start/, async (msg) => {
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const username = msg.from.username || "Неизвестный";
+  const username = msg.from.username ? `@${msg.from.username}` : `[Профиль](tg://user?id=${userId})`;
   const now = Date.now();
 
   // Удаляем старые сообщения бота, если есть
@@ -385,7 +385,7 @@ bot.on("callback_query", async (query) => {
       await bot.sendMessage(chatId, "✅ Заявка была отправлена, скоро с вами свяжутся.");
       await bot.sendMessage(
         adminChatId,
-        `📩 *Новая заявка!*\n\n👤 *Пользователь*: [@${username}](tg://user?id=${userId})\n💬 Нажал кнопку "Свяжите меня с человеком".`,
+        `📩 *Новая заявка!*\n\n👤 *Пользователь*: ${username}\n💬 Нажал кнопку "Свяжите меня с человеком".`,
         { parse_mode: "Markdown" }
       );
       bot.answerCallbackQuery(query.id, { text: "✅ Заявка отправлена!" });
@@ -544,10 +544,7 @@ function askGuests(chatId, retry = false) {
 
 function askLocation(chatId) {
   sendBotMessage(chatId, 
-    retry
-      ? "⛔ Пожалуйста, выберите вариант из списка!"
-      : "📍 Где пройдет мероприятие?",
-    {
+    "📍 Где пройдет мероприятие?", {
     reply_markup: {
       keyboard: locationOptions.map((opt) => [opt]),
       one_time_keyboard: true,
@@ -562,9 +559,7 @@ function askHours(chatId) {
 function askBudget(chatId) {
   sendBotMessage(
     chatId,
-    retry
-    ? "⛔ Пожалуйста, выберите вариант из списка!"
-    : "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
+    "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
     {
       reply_markup: {
         keyboard: budgetOptions.map((opt) => [opt]),
