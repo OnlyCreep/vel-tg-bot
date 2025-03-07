@@ -257,14 +257,7 @@ bot.on("message", async (msg) => {
       break;
 
     case 8:
-      const choice = parseInt(text);
-      if (isNaN(choice) || choice < 1 || choice > 4) {
-        return bot.sendMessage(chatId, "Введите число от 1 до 4.");
-      }
-
-      state.imageChoice = choice;
-      state.step++;
-      await askBonus(chatId);
+      await handleImageChoice(chatId, text);
       break;
 
     case 9:
@@ -405,39 +398,61 @@ async function handleThreeWords(chatId, text) {
 // Выбор картинки
 async function askImageChoice(chatId) {
   userState[chatId].step = 8;
+
   const images = [
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
-      caption: "1. Девушка с аксессуарами",
+      caption: "Девушка с синими плетёными аксессуарами (первая картинка слева)",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
-      caption: "2. Уютная спальня",
+      caption: "Уютная спальня с жёлтыми шторами (верхняя справа)",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
-      caption: "3. Зелёные листья",
+      caption: "Зелёные листья вблизи (по центру справа)",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png",
-      caption: "4. Женщина с украшениями",
+      caption: "Женщина в роскошном образе с украшениями (нижняя справа)",
     },
   ];
 
-  for (const img of images) {
-    await bot.sendPhoto(chatId, img.url, { caption: img.caption });
-  }
+  // Создаем медиагруппу (Telegram поддерживает до 10 изображений в одном сообщении)
+  const mediaGroup = images.map((img) => ({
+    type: "photo",
+    media: img.url,
+    caption: img.caption, // Подпись к изображению
+    parse_mode: "Markdown",
+  }));
 
-  await bot.sendMessage(chatId, "Выберите номер картинки (1-4).");
+  await bot.sendMediaGroup(chatId, mediaGroup);
+
+  // После отправки фото - предложить пользователю выбрать картинку
+  await bot.sendMessage(
+    chatId,
+    "Выберите картинку, которая вам нравится. Напишите точное название из списка выше."
+  );
 }
 
 // Обработка выбора картинки
 async function handleImageChoice(chatId, text) {
-  const choice = parseInt(text);
-  if (isNaN(choice) || choice < 1 || choice > 4) {
-    return bot.sendMessage(chatId, "Введите число от 1 до 4.");
+  const imageOptions = {
+    "Девушка с синими плетёными аксессуарами": "первая картинка слева",
+    "Уютная спальня с жёлтыми шторами": "верхняя справа",
+    "Зелёные листья вблизи": "по центру справа",
+    "Женщина в роскошном образе с украшениями": "нижняя справа",
+  };
+
+  if (!imageOptions.hasOwnProperty(text)) {
+    return bot.sendMessage(
+      chatId,
+      "Выберите картинку, написав точное название из списка выше."
+    );
   }
-  userState[chatId].imageChoice = choice;
+
+  userState[chatId].imageChoice = `${text} (${imageOptions[text]})`;
+  userState[chatId].step++;
   await askBonus(chatId);
 }
 
@@ -639,18 +654,18 @@ bot.on("callback_query", async (callbackQuery) => {
 
 function getSeasonRate(day, monthInput) {
   const monthNames = {
-    январь: "января",
-    февраль: "февраля",
-    март: "марта",
-    апрель: "апреля",
-    май: "мая",
-    июнь: "июня",
-    июль: "июля",
-    август: "августа",
-    сентябрь: "сентября",
-    октябрь: "октября",
-    ноябрь: "ноября",
-    декабрь: "декабря",
+    январь: "январь",
+    февраль: "февраль",
+    март: "март",
+    апрель: "апрель",
+    май: "май",
+    июнь: "июнь",
+    июль: "июль",
+    август: "август",
+    сентябрь: "сентябрь",
+    октябрь: "октябрь",
+    ноябрь: "ноябрь",
+    декабрь: "декабрь",
   };
 
   const month = monthInput.toLowerCase();
