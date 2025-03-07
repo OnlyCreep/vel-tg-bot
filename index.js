@@ -441,7 +441,6 @@ async function askImageChoice(chatId) {
   });
 }
 
-// Обработка выбора картинки
 async function handleImageChoice(chatId, text) {
   const imageOptions = {
     "Девушка с аксессуарами": "первая картинка слева",
