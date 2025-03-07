@@ -565,39 +565,30 @@ bot.on("callback_query", async (callbackQuery) => {
   const data = callbackQuery.data;
 
   if (data === "contact_me") {
-    if (userState[chatId]?.contactRequested) {
-      return bot.answerCallbackQuery(callbackQuery.id, {
-        text: "Вы уже отправили запрос, ожидайте ответа.",
-        show_alert: true,
-      });
-    }
+      if (userState[chatId]?.contactRequested) {
+          return bot.answerCallbackQuery(callbackQuery.id, {
+              text: "Вы уже отправили запрос, ожидайте ответа.",
+              show_alert: true,
+          });
+      }
 
-    const contactInfo = await checkUserContact(chatId);
-    if (!contactInfo) return;
+      let contactInfo = await checkUserContact(chatId);
 
-    userState[chatId].contactRequested = true; // Флаг, чтобы предотвратить дублирование
+      if (!userState[chatId].phone) {
+          await askForContact(chatId);
+          return bot.sendMessage(chatId, "После отправки контакта повторите запрос.");
+      }
 
-    await bot.sendMessage(
-      ADMIN_CHAT_ID,
-      `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
-    );
+      contactInfo += `, 📞 Телефон: ${userState[chatId].phone}`;
 
-    await bot.sendMessage(
-      chatId,
-      "Ваш запрос отправлен. Мы скоро с вами свяжемся!"
-    );
-  }
+      userState[chatId].contactRequested = true;
 
-  if (data === "package_offers") {
-    await askPackageOffer(chatId);
-  }
+      await bot.sendMessage(
+          ADMIN_CHAT_ID,
+          `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
+      );
 
-  if (data === "skip_words") {
-    if (userState[chatId].step === 7) { // ✅ Проверяем, чтобы не было повторного вызова
-      userState[chatId].threeWords = "Пропущено";
-      userState[chatId].step++;
-      await askImageChoice(chatId);
-    }
+      await bot.sendMessage(chatId, "Ваш запрос отправлен. Мы скоро с вами свяжемся!");
   }
 });
 
@@ -677,17 +668,48 @@ bot.onText(/\/survey/, async (msg) => {
   );
 });
 
-async function checkUserContact(chatId) {
-  const user = await bot.getChat(chatId);
-  if (!user.username && !user.phone_number) {
-    await bot.sendMessage(
+async function askForContact(chatId) {
+  await bot.sendMessage(
       chatId,
-      "Мы не можем отправить ваши данные. Пожалуйста, перейдите по ссылке на профиль: @yuriy_vel."
-    );
-    return false;
-  }
-  return user.username || user.phone_number || "неизвестно";
+      "Пожалуйста, отправьте свой контакт, нажав на кнопку ниже:",
+      {
+          reply_markup: {
+              keyboard: [
+                  [
+                      {
+                          text: "Отправить мой номер 📞",
+                          request_contact: true,
+                      },
+                  ],
+              ],
+              one_time_keyboard: true,
+              resize_keyboard: true,
+          },
+      }
+  );
 }
+
+async function checkUserContact(chatId) {
+  try {
+      const user = await bot.getChat(chatId);
+
+      let contactInfo = "";
+
+      if (user.username) {
+          contactInfo = `@${user.username}`;
+      } else if (user.first_name) {
+          contactInfo = `${user.first_name} ${user.last_name || ""}`.trim();
+      } else {
+          contactInfo = "Неизвестный пользователь";
+      }
+
+      return contactInfo;
+  } catch (error) {
+      console.error("Ошибка получения данных пользователя:", error);
+      return "Ошибка получения данных";
+  }
+}
+
 
 function getSeasonRate(day, monthInput) {
   const monthNames = {
