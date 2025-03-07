@@ -514,12 +514,32 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 });
 
-function getSeasonRate(day, month) {
-  if (!seasonRates[month]) return null;
+function getSeasonRate(day, monthInput) {
+  const monthNames = {
+    январь: "январь",
+    февраль: "февраль",
+    март: "март",
+    апрель: "апрель",
+    май: "май",
+    июнь: "июнь",
+    июль: "июль",
+    август: "август",
+    сентябрь: "сентябрь",
+    октябрь: "октябрь",
+    ноябрь: "ноябрь",
+    декабрь: "декабрь",
+  };
+
+  const month = monthInput.toLowerCase();
+  if (!monthNames[month]) return null;
+
   if (month === "декабрь") {
     return day < 15 ? seasonRates[month]["до 14"] : seasonRates[month]["с 15"];
   }
-  const weekday = moment(`${day} ${month}`, "D MMMM").isoWeekday();
+
+  const dateString = `${day} ${month} 2024`; // Добавляем год для корректной проверки дня недели
+  const weekday = moment(dateString, "D MMMM YYYY").isoWeekday();
+
   return weekday < 5
     ? seasonRates[month]["вс-чт"]
     : seasonRates[month]["пт-сб"];
