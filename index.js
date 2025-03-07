@@ -224,10 +224,10 @@ async function deletePreviousBotMessages(chatId) {
 // Функция отправки сообщений с сохранением ID сообщений бота
 async function sendBotMessage(chatId, text, options = {}) {
   try {
-    const sentMessage = await bot.sendMessage(chatId, text, options);
     if (!userSessions[chatId]) {
       userSessions[chatId] = { botMessages: [] };
     }
+    const sentMessage = await bot.sendMessage(chatId, text, options);
     userSessions[chatId].botMessages.push(sentMessage.message_id);
   } catch (err) {
     console.error("Ошибка отправки сообщения:", err.message);
@@ -355,7 +355,7 @@ bot.on("callback_query", async (query) => {
           });
         }
         lastSurveyTime[userId] = Date.now();
-        userSessions[chatId] = { userId, username, isSurveyActive: true };
+        userSessions[chatId] = { userId, username, isSurveyActive: true, botMessages: [] };
         askDate(chatId);
         break;
 
@@ -406,46 +406,16 @@ bot.on("callback_query", async (query) => {
 
 // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
 function sendSummary(chatId) {
-  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
-
-  const session = userSessions[chatId];
+  const session = userSessions.get(chatId);
+  if (!session) return;
   let totalPrice = calculatePrice(session);
-
-  const summaryMessage =
-    `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
-    `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
   bot.sendMessage(
     chatId,
-    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
-      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-          [
-            {
-              text: "Интересные пакетные предложения",
-              callback_data: "show_packages",
-            },
-          ],
-        ],
-      },
-    }
+    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\nЦена может меняться в зависимости от деталей мероприятия.`
   );
 
-  // Отправляем админу информацию о запросе
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
+  bot.sendMessage(adminChatId, `📩 Новый запрос:\n🎉 Событие: ${session.event}\n📅 Дата: ${session.date}\n👥 Гости: ${session.guests}\n📍 Локация: ${session.location}\n⏳ Часы: ${session.hours}\n💰 Бюджет: ${session.budget}\n💵 Итог: ${totalPrice.toLocaleString()}₽`);
 }
 
 bot.on("message", async (msg) => {
