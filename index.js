@@ -402,53 +402,56 @@ async function askImageChoice(chatId) {
   const images = [
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
-      caption: "Девушка с синими плетёными аксессуарами (первая картинка слева)",
+      caption: "Девушка с синими аксессуарами (первая картинка слева)",
+      title: "Девушка с аксессуарами",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
       caption: "Уютная спальня с жёлтыми шторами (верхняя справа)",
+      title: "Уютная спальня",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
       caption: "Зелёные листья вблизи (по центру справа)",
+      title: "Зелёные листья",
     },
     {
       url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png",
       caption: "Женщина в роскошном образе с украшениями (нижняя справа)",
+      title: "Женщина с украшениями",
     },
   ];
 
-  // Создаем медиагруппу (Telegram поддерживает до 10 изображений в одном сообщении)
+  // Отправляем все изображения как медиагруппу
   const mediaGroup = images.map((img) => ({
     type: "photo",
     media: img.url,
-    caption: img.caption, // Подпись к изображению
+    caption: img.caption,
     parse_mode: "Markdown",
   }));
 
   await bot.sendMediaGroup(chatId, mediaGroup);
 
-  // После отправки фото - предложить пользователю выбрать картинку
-  await bot.sendMessage(
-    chatId,
-    "Выберите картинку, которая вам нравится. Напишите точное название из списка выше."
-  );
+  // Создаем кнопки для выбора
+  await bot.sendMessage(chatId, "Выберите картинку, которая вам нравится:", {
+    reply_markup: {
+      keyboard: images.map((img) => [img.title]), // Создаем кнопки с названиями картинок
+      one_time_keyboard: true,
+    },
+  });
 }
 
 // Обработка выбора картинки
 async function handleImageChoice(chatId, text) {
   const imageOptions = {
-    "Девушка с синими плетёными аксессуарами": "первая картинка слева",
-    "Уютная спальня с жёлтыми шторами": "верхняя справа",
-    "Зелёные листья вблизи": "по центру справа",
-    "Женщина в роскошном образе с украшениями": "нижняя справа",
+    "Девушка с аксессуарами": "первая картинка слева",
+    "Уютная спальня": "верхняя справа",
+    "Зелёные листья": "по центру справа",
+    "Женщина с украшениями": "нижняя справа",
   };
 
   if (!imageOptions.hasOwnProperty(text)) {
-    return bot.sendMessage(
-      chatId,
-      "Выберите картинку, написав точное название из списка выше."
-    );
+    return bot.sendMessage(chatId, "Выберите картинку, используя кнопки ниже.");
   }
 
   userState[chatId].imageChoice = `${text} (${imageOptions[text]})`;
