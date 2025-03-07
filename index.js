@@ -28,9 +28,6 @@ const budgetOptions = [
   "151-200",
   "Более 200",
 ];
-
-let pendingRequests = {};
-
 const seasonRates = {
   январь: { "вс-чт": 11000, "пт-сб": 14000 },
   февраль: { "вс-чт": 11000, "пт-сб": 14000 },
@@ -79,10 +76,6 @@ const images = [
     caption: "Женщина в роскошном образе с украшениями (нижняя справа)",
   },
 ];
-
-function escapeMarkdownV2(text) {
-  return text.replace(/[_*[\]()~`>#+-=|{}.!]/g, "\\$&");
-}
 
 function calculatePrice(session) {
   let baseRate = getBaseRate(session.date);
@@ -216,27 +209,24 @@ bot.onText(/\/survey/, async (msg) => {
 });
 
 async function deletePreviousBotMessages(chatId) {
-  if (!userSessions[chatId] || !userSessions[chatId].botMessages) return;
-
-  for (const messageId of userSessions[chatId].botMessages) {
-    try {
-      await bot.deleteMessage(chatId, messageId);
-    } catch (err) {
-      console.error(`Ошибка удаления сообщения ${messageId}:`, err.message);
+  if (userSessions[chatId]?.botMessages?.length) {
+    for (const messageId of userSessions[chatId].botMessages) {
+      try {
+        await bot.deleteMessage(chatId, messageId);
+      } catch (err) {
+        console.error(`Ошибка удаления сообщения ${messageId}:`, err.message);
+      }
     }
+    userSessions[chatId].botMessages = [];
   }
-
-  userSessions[chatId].botMessages = [];
 }
 
+// Функция отправки сообщений с сохранением ID сообщений бота
 async function sendBotMessage(chatId, text, options = {}) {
   try {
     const sentMessage = await bot.sendMessage(chatId, text, options);
     if (!userSessions[chatId]) {
-      userSessions[chatId] = { botMessages: [] }; // Гарантируем, что объект существует
-    }
-    if (!userSessions[chatId].botMessages) {
-      userSessions[chatId].botMessages = [];
+      userSessions[chatId] = { botMessages: [] };
     }
     userSessions[chatId].botMessages.push(sentMessage.message_id);
   } catch (err) {
@@ -340,108 +330,105 @@ function sendPackageImages(chatId, eventType) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-          [
-            {
-              text: "Другие пакетные предложения",
-              callback_data: "show_packages",
-            },
-          ],
+          [{ text: "Другие пакетные предложения", callback_data: "show_packages" }],
         ],
       },
     });
   });
 }
 
-// ГЛАВНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK-КНОПОК
+const pendingRequests = {}; // Храним активные запросы
+
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
   const username = query.from.username ? `@${query.from.username}` : null;
-  const phoneNumber = query.from.phone_number
-    ? `📞 ${query.from.phone_number}`
-    : null;
+  const phoneNumber = query.from.phone_number ? `📞 ${query.from.phone_number}` : null;
 
-  switch (query.data) {
-    case "start_survey":
-      if (
-        lastSurveyTime[userId] &&
-        Date.now() - lastSurveyTime[userId] < 60000
-      ) {
-        return bot.answerCallbackQuery(query.id, {
-          text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
-          show_alert: true,
-        });
-      }
-      lastSurveyTime[userId] = Date.now();
-      userSessions[chatId] = { userId, isSurveyActive: true }; // Теперь уникально для каждого пользователя
-      askDate(chatId);
-      break;
+  try {
+    switch (query.data) {
+      case "start_survey":
+        if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
+          return bot.answerCallbackQuery(query.id, {
+            text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
+            show_alert: true,
+          });
+        }
+        lastSurveyTime[userId] = Date.now();
+        userSessions[chatId] = { userId, username, isSurveyActive: true };
+        askDate(chatId);
+        break;
 
-    case "show_packages":
-      sendPackageOptions(chatId);
-      break;
+      case "show_packages":
+        sendPackageOptions(chatId);
+        break;
 
-    case "package_corporate":
-      sendPackageImages(chatId, "Корпоратив");
-      break;
+      case "package_corporate":
+        sendPackageImages(chatId, "Корпоратив");
+        break;
 
-    case "package_graduation":
-      sendPackageImages(chatId, "Выпускной");
-      break;
+      case "package_graduation":
+        sendPackageImages(chatId, "Выпускной");
+        break;
 
-    case "package_birthday":
-      sendPackageImages(chatId, "День рождения");
-      break;
+      case "package_birthday":
+        sendPackageImages(chatId, "День рождения");
+        break;
 
-    case "package_wedding":
-      sendPackageImages(chatId, "Свадьба");
-      break;
+      case "package_wedding":
+        sendPackageImages(chatId, "Свадьба");
+        break;
 
-    case "oper_mes":
-      const session = userSessions[chatId];
-      if (!session) return;
+      case "oper_mes":
+        if (pendingRequests[userId]) {
+          return bot.answerCallbackQuery(query.id, {
+            text: "⛔ Вы уже отправили заявку, ожидайте!",
+            show_alert: true,
+          });
+        }
 
-      let userInfo = `👤 Пользователь: [Профиль](tg://user?id=${userId})\n`;
-      if (session.username) {
-        userInfo += `🔹 Ник: ${escapeMarkdownV2(session.username)}\n`;
-      }
+        pendingRequests[userId] = true; // Фиксируем заявку
 
-      await bot.sendMessage(
-        adminChatId,
-        `📩 *Новая заявка!*\n${userInfo}💬 Нажал кнопку "Свяжите меня с человеком".`,
-        { parse_mode: "MarkdownV2" }
-      );
-
-      bot.answerCallbackQuery(query.id, { text: "✅ Заявка обработана!" });
-      break;
+        let adminMessage = `📩 *Новая заявка!*
+👤 *Пользователь*: ${username || phoneNumber || "Неизвестный"}
+💬 Нажал кнопку "Свяжите меня с человеком".`;
+        
+        await bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
+        await bot.sendMessage(chatId, "✅ Ваша заявка отправлена. Скоро с вами свяжутся!");
+        bot.answerCallbackQuery(query.id, { text: "✅ Заявка обработана!" });
+        break;
+    }
+  } catch (error) {
+    console.error("Ошибка в обработке callback_query:", error);
+    bot.sendMessage(chatId, "❌ Произошла ошибка. Попробуйте позже.");
   }
 });
 
+// ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫВОДА ИТОГОВ
 function sendSummary(chatId) {
-  if (!userSessions[chatId]) return;
+  if (!userSessions[chatId]) return; // Проверяем, есть ли активная сессия
 
   const session = userSessions[chatId];
-  if (!session.date || !session.event || !session.guests) return; // Проверяем, что сессия полная
-
   let totalPrice = calculatePrice(session);
 
-  let summaryMessage =
+  const summaryMessage =
     `📩 *Новый опрос*\n` +
     `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
-    `📅 *Дата*: ${escapeMarkdownV2(session.date)}\n` +
-    `🎉 *Событие*: ${escapeMarkdownV2(session.event)}\n` +
-    `👥 *Гости*: ${escapeMarkdownV2(session.guests)}\n` +
-    `📍 *Локация*: ${escapeMarkdownV2(session.location)}\n` +
-    `⏳ *Длительность*: ${escapeMarkdownV2(session.hours.toString())} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${escapeMarkdownV2(session.budget)} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${escapeMarkdownV2(session.words)}\n` +
-    `🖼 *Выбранный стиль*: ${escapeMarkdownV2(session.selectedImage)}\n` +
-    `🎁 *Выбранный бонус*: ${escapeMarkdownV2(session.bonus)}\n` +
+    `📅 *Дата*: ${session.date}\n` +
+    `🎉 *Событие*: ${session.event}\n` +
+    `👥 *Гости*: ${session.guests}\n` +
+    `📍 *Локация*: ${session.location}\n` +
+    `⏳ *Длительность*: ${session.hours} ч.\n` +
+    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
+    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
+    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
+    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
     `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
   bot.sendMessage(
     chatId,
-    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`,
+    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽\n\n` +
+      `Я старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
     {
       reply_markup: {
         inline_keyboard: [
@@ -457,12 +444,9 @@ function sendSummary(chatId) {
     }
   );
 
-  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "MarkdownV2" });
-
-  delete userSessions[chatId]; // Очищаем данные только после отправки!
+  // Отправляем админу информацию о запросе
+  bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "Markdown" });
 }
-
-// Объект для отслеживания заявок
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
