@@ -105,10 +105,13 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 });
 
-
 // Обработка текста пользователя
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
+
+  // Если сообщение в чате админа - игнорируем
+  if (chatId === ADMIN_CHAT_ID) return;
+
   const text = msg.text.trim();
 
   if (msg.text.startsWith("/")) return;
@@ -305,6 +308,7 @@ bot.on("message", async (msg) => {
           },
         }
       );
+      await sendAdminSummary(chatId);
       break;
 
     case 10:
@@ -347,9 +351,6 @@ bot.on("message", async (msg) => {
           ],
         },
       });
-
-      // Отправить админу итоговый ответ
-      await sendAdminSummary(chatId);
       break;
   }
 });
