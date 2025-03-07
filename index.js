@@ -209,7 +209,78 @@ bot.on("message", async (msg) => {
       state.step++;
       await bot.sendMessage(
         chatId,
-        `✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\n\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
+        "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
+        {
+          reply_markup: {
+            keyboard: budgetOptions.map((e) => [e]),
+            one_time_keyboard: true,
+          },
+        }
+      );
+      break;
+
+    case 6:
+      if (!budgetOptions.includes(text)) {
+        return bot.sendMessage(
+          chatId,
+          "Выберите один из предложенных вариантов."
+        );
+      }
+
+      state.budget = text;
+      state.step++;
+      await bot.sendMessage(
+        chatId,
+        "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Пропустить", callback_data: "skip_words" }],
+            ],
+          },
+        }
+      );
+      break;
+
+    case 7:
+      const words = text.split(/\s+/);
+      if (words.length !== 3) {
+        return bot.sendMessage(
+          chatId,
+          "Введите ровно три слова, разделенные пробелом."
+        );
+      }
+
+      state.threeWords = text;
+      state.step++;
+      await askImageChoice(chatId);
+      break;
+
+    case 8:
+      const choice = parseInt(text);
+      if (isNaN(choice) || choice < 1 || choice > 4) {
+        return bot.sendMessage(chatId, "Введите число от 1 до 4.");
+      }
+
+      state.imageChoice = choice;
+      state.step++;
+      await askBonus(chatId);
+      break;
+
+    case 9:
+      if (!bonusOptions.includes(text)) {
+        return bot.sendMessage(
+          chatId,
+          "Выберите один из предложенных бонусов."
+        );
+      }
+
+      state.bonus = text;
+      state.step++;
+
+      await bot.sendMessage(
+        chatId,
+        `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -219,10 +290,61 @@ bot.on("message", async (msg) => {
                   callback_data: "contact_me",
                 },
               ],
+              [
+                {
+                  text: "Интересные пакетные предложения",
+                  callback_data: "package_offers",
+                },
+              ],
             ],
           },
         }
       );
+      break;
+
+    case 10:
+      if (
+        !["Корпоратив", "Выпускной", "День рождения", "Свадьба"].includes(text)
+      ) {
+        return bot.sendMessage(
+          chatId,
+          "Выберите один из предложенных вариантов."
+        );
+      }
+
+      state.package = text;
+      await bot.sendMessage(
+        chatId,
+        `✅ Вы выбрали пакет "${text}". Вот примеры оформления:`
+      );
+
+      const packageImages = {
+        Корпоратив: ["./images/corporate1.jpg"],
+        Выпускной: ["./images/graduation1.jpg", "./images/graduation2.jpg"],
+        "День рождения": ["./images/birthday1.jpg"],
+        Свадьба: ["./images/wedding1.jpg", "./images/wedding2.jpg"],
+      };
+
+      for (const image of packageImages[text]) {
+        await bot.sendPhoto(chatId, image);
+      }
+
+      await bot.sendMessage(chatId, "🔹 Узнать больше:", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+            [
+              {
+                text: "Другие пакетные предложения",
+                callback_data: "package_offers",
+              },
+            ],
+          ],
+        },
+      });
+
+      // Отправить админу итоговый ответ
+      await sendAdminSummary(chatId);
       break;
   }
 });
@@ -368,18 +490,19 @@ async function sendAdminSummary(chatId) {
   const username = state.username || "неизвестно";
 
   const summaryMessage = `
-📩 *Новый опрос*\n
-👤 *Пользователь*: ${username}\n
-📅 *Дата*: ${state.date}\n
-🎉 *Событие*: ${state.event}\n
-👥 *Гости*: ${state.guestCount}\n
-📍 *Локация*: ${state.location}\n
-⏳ *Длительность*: ${state.hours} ч.\n
-💰 *Ожидания по бюджету*: ${state.budget} тыс. ₽\n
-🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
-🖼 *Выбранный стиль*: Картинка №${state.imageChoice}\n
-🎁 *Выбранный бонус*: ${state.bonus}\n
-💵 *Итоговая стоимость*: ${state.totalPrice}₽
+  📩 *Новый опрос*\n
+  👤 *Пользователь*: ${username}\n
+  📅 *Дата*: ${state.date}\n
+  🎉 *Событие*: ${state.event}\n
+  👥 *Гости*: ${state.guestCount}\n
+  📍 *Локация*: ${state.location}\n
+  ⏳ *Длительность*: ${state.hours} ч.\n
+  💰 *Ожидания по бюджету*: ${state.budget} тыс. ₽\n
+  🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
+  🖼 *Выбранный стиль*: Картинка №${state.imageChoice}\n
+  🎁 *Выбранный бонус*: ${state.bonus}\n
+  📦 *Выбранный пакет услуг*: ${state.package || "Не выбрано"}\n
+  💵 *Итоговая стоимость*: ${state.totalPrice}₽
   `;
 
   await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
