@@ -93,46 +93,57 @@ function calculatePrice(session) {
 
 function getBaseRate(dateString) {
   const months = {
-    январь: 1,
-    февраль: 2,
-    март: 3,
-    апрель: 4,
-    май: 5,
-    июнь: 6,
-    июль: 7,
-    август: 8,
-    сентябрь: 9,
-    октябрь: 10,
-    ноябрь: 11,
-    декабрь: 12,
+    январь: 1, февраль: 2, март: 3, апрель: 4, май: 5,
+    июнь: 6, июль: 7, август: 8, сентябрь: 9,
+    октябрь: 10, ноябрь: 11, декабрь: 12
   };
 
-  // Пакетные предложения с путями к изображениям
-
-  let date = parseDate(dateString);
-  let monthName =
-    Object.keys(months).find((m) => dateString.toLowerCase().includes(m)) ||
-    Object.keys(months)[date.getMonth()];
-  let day = date.getDate();
-  let dayOfWeek = date.getDay();
-  let rateType = dayOfWeek >= 5 ? "пт-сб" : "вс-чт";
-  if (monthName === "декабрь" && day >= 15) {
-    return seasonRates["декабрь"]["с 15"];
+  let date = parseDate(dateString); // Попытка распарсить дату
+  if (!date) {
+    console.warn("Ошибка парсинга даты:", dateString, "— устанавливаем базовую цену 15 000 руб.");
+    return 15000; // Если дата не распарсилась, возвращаем 15 000 руб.
   }
-  return seasonRates[monthName][rateType];
+
+  let monthName = Object.keys(months).find((m) =>
+    dateString.toLowerCase().includes(m)
+  ) || Object.keys(months)[date.getMonth()];
+
+  let day = date.getDate();
+  let dayOfWeek = date.getDay(); // 0 - воскресенье, 6 - суббота
+  let rateType = (dayOfWeek >= 5) ? "пт-сб" : "вс-чт"; // Пт и Сб - повышенные ставки
+
+  if (monthName === "декабрь") {
+    return (day >= 15) ? seasonRates["декабрь"]["с 15"] : seasonRates["декабрь"]["до 14"];
+  }
+
+  return seasonRates[monthName]?.[rateType] || 15000; // Подстраховка, если вдруг нет данных
 }
 
 function parseDate(input) {
-  let date = new Date();
-  if (!isNaN(input)) {
-    date.setDate(parseInt(input));
-  } else {
-    let parsedDate = Date.parse(input);
-    if (!isNaN(parsedDate)) {
-      date = new Date(parsedDate);
-    }
+  try {
+    let dateParts = input.match(/(\d{1,2})\s([а-я]+)/i);
+    if (!dateParts) return null;
+
+    let day = parseInt(dateParts[1]);
+    let month = dateParts[2].toLowerCase();
+
+    const months = {
+      январь: 0, февраль: 1, март: 2, апрель: 3, май: 4,
+      июнь: 5, июль: 6, август: 7, сентябрь: 8,
+      октябрь: 9, ноябрь: 10, декабрь: 11
+    };
+
+    if (!(month in months)) return null;
+
+    let now = new Date();
+    let year = now.getFullYear();
+
+    let date = new Date(year, months[month], day);
+    return isNaN(date.getTime()) ? null : date;
+  } catch (error) {
+    console.error("Ошибка в parseDate:", error);
+    return null;
   }
-  return date;
 }
 
 function askDate(chatId) {
