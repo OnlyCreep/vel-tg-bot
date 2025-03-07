@@ -668,24 +668,6 @@ async function checkUserContact(chatId) {
   return user.username || user.phone_number || "неизвестно";
 }
 
-bot.on("callback_query", async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-
-  if (callbackQuery.data === "contact_me") {
-    const contactInfo = await checkUserContact(chatId);
-    if (!contactInfo) return;
-
-    await bot.sendMessage(
-      ADMIN_CHAT_ID,
-      `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
-    );
-    await bot.sendMessage(
-      chatId,
-      "Ваш запрос отправлен. Мы скоро с вами свяжемся!"
-    );
-  }
-});
-
 function getSeasonRate(day, monthInput) {
   const monthNames = {
     январь: "январь",
