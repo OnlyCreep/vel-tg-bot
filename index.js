@@ -330,6 +330,7 @@ function sendPackageImages(chatId, eventType) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
+          [{ text: "Другие пакетные предложения", callback_data: "show_packages" }],
         ],
       },
     });
