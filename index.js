@@ -94,6 +94,18 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 });
 
+bot.on("callback_query", async (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const data = callbackQuery.data;
+
+  if (data === "skip_words") {
+    userState[chatId].threeWords = "Пропущено";
+    userState[chatId].step++;
+    await askImageChoice(chatId);
+  }
+});
+
+
 // Обработка текста пользователя
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
