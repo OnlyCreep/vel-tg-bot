@@ -330,7 +330,12 @@ function sendPackageImages(chatId, eventType) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-          [{ text: "Другие пакетные предложения", callback_data: "show_packages" }],
+          [
+            {
+              text: "Другие пакетные предложения",
+              callback_data: "show_packages",
+            },
+          ],
         ],
       },
     });
@@ -343,12 +348,17 @@ bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
   const username = query.from.username ? `@${query.from.username}` : null;
-  const phoneNumber = query.from.phone_number ? `📞 ${query.from.phone_number}` : null;
+  const phoneNumber = query.from.phone_number
+    ? `📞 ${query.from.phone_number}`
+    : null;
 
   try {
     switch (query.data) {
       case "start_survey":
-        if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
+        if (
+          lastSurveyTime[userId] &&
+          Date.now() - lastSurveyTime[userId] < 60000
+        ) {
           return bot.answerCallbackQuery(query.id, {
             text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
             show_alert: true,
@@ -380,6 +390,14 @@ bot.on("callback_query", async (query) => {
         break;
 
       case "oper_mes":
+        if (!session.username && !session.phoneNumber) {
+          bot.sendMessage(
+            chatId,
+            "❌ Мы не можем отправить ваши данные оператору. Пожалуйста, напишите Юрию напрямую: @yuriy_vel"
+          );
+          return;
+        }
+
         if (pendingRequests[userId]) {
           return bot.answerCallbackQuery(query.id, {
             text: "⛔ Вы уже отправили заявку, ожидайте!",
@@ -390,11 +408,18 @@ bot.on("callback_query", async (query) => {
         pendingRequests[userId] = true; // Фиксируем заявку
 
         let adminMessage = `📩 *Новая заявка!*
-👤 *Пользователь*: ${username || phoneNumber || "Неизвестный"}
-💬 Нажал кнопку "Свяжите меня с человеком".`;
-        
-        await bot.sendMessage(adminChatId, adminMessage, { parse_mode: "Markdown" });
-        await bot.sendMessage(chatId, "✅ Ваша заявка отправлена. Скоро с вами свяжутся!");
+        👤 *Пользователь*: ${
+          session.username || `📞 ${session.phoneNumber}` || "Неизвестный"
+        }
+        💬 Нажал кнопку "Свяжите меня с человеком".`;
+
+        await bot.sendMessage(adminChatId, adminMessage, {
+          parse_mode: "Markdown",
+        });
+        await bot.sendMessage(
+          chatId,
+          "✅ Ваша заявка отправлена. Скоро с вами свяжутся!"
+        );
         bot.answerCallbackQuery(query.id, { text: "✅ Заявка обработана!" });
         break;
     }
@@ -411,9 +436,15 @@ function sendSummary(chatId) {
   const session = userSessions[chatId];
   let totalPrice = calculatePrice(session);
 
+  let contactInfo = session.username
+    ? `[Профиль](tg://user?id=${chatId})`
+    : session.phoneNumber
+    ? `📞 ${session.phoneNumber}`
+    : null;
+
   const summaryMessage =
     `📩 *Новый опрос*\n` +
-    `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
+    `👤 *Пользователь*: ${contactInfo}\n` +
     `📅 *Дата*: ${session.date}\n` +
     `🎉 *Событие*: ${session.event}\n` +
     `👥 *Гости*: ${session.guests}\n` +
