@@ -28,6 +28,7 @@ const budgetOptions = [
   "151-200",
   "Более 200",
 ];
+
 const seasonRates = {
   январь: { "вс-чт": 11000, "пт-сб": 14000 },
   февраль: { "вс-чт": 11000, "пт-сб": 14000 },
@@ -42,6 +43,7 @@ const seasonRates = {
   ноябрь: { "вс-чт": 11000, "пт-сб": 14000 },
   декабрь: { "до 14": 14000, "с 15": 15000 },
 };
+
 const guestMultiplier = {
   "До 50": 1,
   "50-75": 1.1,
@@ -50,12 +52,14 @@ const guestMultiplier = {
   "151-200": 2,
   "Более 200": 2.5,
 };
+
 const locationExtra = {
   Новосибирск: 0,
   "Пригород (до 30 км)": 5000,
   Другое: 1.5,
 };
-let userSessions = {};
+
+let userSessions = new Map();
 let lastSurveyTime = {};
 
 const images = [
@@ -83,67 +87,54 @@ function calculatePrice(session) {
   let locationFactor = locationExtra[session.location] || 1;
   let totalPrice = baseRate * session.hours * guestFactor;
   totalPrice =
-    locationFactor == 5000
-      ? totalPrice + 5000
-      : locationFactor == 1.5
-      ? (totalPrice *= 1.5)
-      : totalPrice;
+    locationFactor === 5000 ? totalPrice + 5000 : totalPrice * locationFactor;
   return totalPrice;
 }
 
 function getBaseRate(dateString) {
-  const months = {
-    январь: 1, февраль: 2, март: 3, апрель: 4, май: 5,
-    июнь: 6, июль: 7, август: 8, сентябрь: 9,
-    октябрь: 10, ноябрь: 11, декабрь: 12
-  };
+  let date = parseDate(dateString);
+  if (!date) return 15000;
 
-  let date = parseDate(dateString); // Попытка распарсить дату
-  if (!date) {
-    console.warn("Ошибка парсинга даты:", dateString, "— устанавливаем базовую цену 15 000 руб.");
-    return 15000; // Если дата не распарсилась, возвращаем 15 000 руб.
-  }
-
-  let monthName = Object.keys(months).find((m) =>
-    dateString.toLowerCase().includes(m)
-  ) || Object.keys(months)[date.getMonth()];
-
+  const months = Object.keys(seasonRates);
+  let monthName =
+    months.find((m) => dateString.toLowerCase().includes(m)) ||
+    months[date.getMonth()];
   let day = date.getDate();
-  let dayOfWeek = date.getDay(); // 0 - воскресенье, 6 - суббота
-  let rateType = (dayOfWeek >= 5) ? "пт-сб" : "вс-чт"; // Пт и Сб - повышенные ставки
+  let dayOfWeek = date.getDay();
+  let rateType = dayOfWeek >= 5 ? "пт-сб" : "вс-чт";
 
-  if (monthName === "декабрь") {
-    return (day >= 15) ? seasonRates["декабрь"]["с 15"] : seasonRates["декабрь"]["до 14"];
-  }
-
-  return seasonRates[monthName]?.[rateType] || 15000; // Подстраховка, если вдруг нет данных
+  return monthName === "декабрь"
+    ? day >= 15
+      ? seasonRates[monthName]["с 15"]
+      : seasonRates[monthName]["до 14"]
+    : seasonRates[monthName][rateType] || 15000;
 }
 
 function parseDate(input) {
-  try {
-    let dateParts = input.match(/(\d{1,2})\s([а-я]+)/i);
-    if (!dateParts) return null;
+  let dateParts = input.match(/(\d{1,2})\s([а-я]+)/i);
+  if (!dateParts) return null;
 
-    let day = parseInt(dateParts[1]);
-    let month = dateParts[2].toLowerCase();
+  let day = parseInt(dateParts[1]);
+  let monthName = dateParts[2].toLowerCase();
+  const months = {
+    январь: 0,
+    февраль: 1,
+    март: 2,
+    апрель: 3,
+    май: 4,
+    июнь: 5,
+    июль: 6,
+    август: 7,
+    сентябрь: 8,
+    октябрь: 9,
+    ноябрь: 10,
+    декабрь: 11,
+  };
+  if (!(monthName in months)) return null;
 
-    const months = {
-      январь: 0, февраль: 1, март: 2, апрель: 3, май: 4,
-      июнь: 5, июль: 6, август: 7, сентябрь: 8,
-      октябрь: 9, ноябрь: 10, декабрь: 11
-    };
-
-    if (!(month in months)) return null;
-
-    let now = new Date();
-    let year = now.getFullYear();
-
-    let date = new Date(year, months[month], day);
-    return isNaN(date.getTime()) ? null : date;
-  } catch (error) {
-    console.error("Ошибка в parseDate:", error);
-    return null;
-  }
+  let year = new Date().getFullYear();
+  let date = new Date(year, months[monthName], day);
+  return isNaN(date.getTime()) ? null : date;
 }
 
 function askDate(chatId) {
@@ -159,44 +150,26 @@ function askGuests(chatId) {
   });
 }
 
-bot.onText(/\/start/, async (msg) => {
+bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const username = msg.from.username
-    ? `@${msg.from.username}`
-    : `[Профиль]tg://user?id=${userId}`;
-
-  // Удаляем все старые сообщения бота перед перезапуском
-  await deletePreviousBotMessages(chatId);
-
-  // Если пользователь уже проходил квиз, уведомляем администратора
-  if (userSessions[chatId]?.isSurveyActive) {
-    bot.sendMessage(
-      adminChatId,
-      `⚠️ Пользователь [@${username}](tg://user?id=${userId}) остановил текущий опрос командой /start.`,
-      { parse_mode: "Markdown" }
-    );
-  }
-
-  // Полностью очищаем данные пользователя и прерываем квиз
-  userSessions[chatId] = { isSurveyActive: false }; // Сбрасываем состояние опроса
-
-  // Отправляем стартовое сообщение с кнопкой
-  bot.sendMessage(
-    chatId,
-    "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Поехали🚂", callback_data: "start_survey" }],
-        ],
-      },
-    }
-  );
+  userSessions.set(userId, { isSurveyActive: false });
+  bot.sendMessage(chatId, "Добро пожаловать! Нажмите 'Поехали' для начала.", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Поехали 🚂", callback_data: "start_survey" }],
+      ],
+    },
+  });
 });
 
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
+  userSessions.set(userId, {
+    userId,
+    username,
+    isSurveyActive: true,
+    botMessages: [],
+  });
   const userId = msg.from.id;
   const username = msg.from.username
     ? `@${msg.from.username}`
@@ -204,31 +177,24 @@ bot.onText(/\/survey/, async (msg) => {
   const now = Date.now();
 
   // Удаляем старые сообщения бота, если есть
-  await deletePreviousBotMessages(chatId);
-
-  // Удаляем старую сессию и создаем новую
-  userSessions[chatId] = {
-    userId,
-    username,
-    isSurveyActive: true,
-    botMessages: [],
-  };
+  await deletePreviousBotMessages(userId, chatId);
 
   lastSurveyTime[userId] = now;
 
   askDate(chatId);
 });
 
-async function deletePreviousBotMessages(chatId) {
-  if (userSessions[chatId]?.botMessages?.length) {
-    for (const messageId of userSessions[chatId].botMessages) {
+async function deletePreviousBotMessages(userId, chatId) {
+  const session = userSessions.get(userId);
+  if (session?.botMessages?.length) {
+    for (const messageId of session.botMessages) {
       try {
         await bot.deleteMessage(chatId, messageId);
       } catch (err) {
         console.error(`Ошибка удаления сообщения ${messageId}:`, err.message);
       }
     }
-    userSessions[chatId].botMessages = [];
+    session.botMessages = [];
   }
 }
 
@@ -401,12 +367,19 @@ bot.on("callback_query", async (query) => {
         break;
 
       case "oper_mes":
+        const session = userSessions[chatId];
+        if (!session) {
+          return bot.sendMessage(
+            chatId,
+            "❌ Произошла ошибка. Попробуйте позже."
+          );
+        }
+
         if (!session.username && !session.phoneNumber) {
-          bot.sendMessage(
+          return bot.sendMessage(
             chatId,
             "❌ Мы не можем отправить ваши данные оператору. Пожалуйста, напишите Юрию напрямую: @yuriy_vel"
           );
-          return;
         }
 
         if (pendingRequests[userId]) {
@@ -419,10 +392,8 @@ bot.on("callback_query", async (query) => {
         pendingRequests[userId] = true; // Фиксируем заявку
 
         let adminMessage = `📩 *Новая заявка!*
-        👤 *Пользователь*: ${
-          session.username || `📞 ${session.phoneNumber}` || "Неизвестный"
-        }
-        💬 Нажал кнопку "Свяжите меня с человеком".`;
+          👤 *Пользователь*: ${session.username || `📞 ${session.phoneNumber}`}
+          💬 Нажал кнопку "Свяжите меня с человеком".`;
 
         await bot.sendMessage(adminChatId, adminMessage, {
           parse_mode: "Markdown",
