@@ -3,31 +3,10 @@ const token = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
 const bot = new TelegramBot(token, { polling: true });
 
 const adminChatId = -4701713936;
-const guestOptions = [
-  "До 50",
-  "50-75",
-  "76-100",
-  "101-150",
-  "151-200",
-  "Более 200",
-];
-const eventOptions = [
-  "Корпоратив",
-  "Свадьба",
-  "Выпускной",
-  "День рождения",
-  "Обучение/Тимбилдинг",
-  "Другое",
-];
+const guestOptions = ["До 50", "50-75", "76-100", "101-150", "151-200", "Более 200"];
+const eventOptions = ["Корпоратив", "Свадьба", "Выпускной", "День рождения", "Обучение/Тимбилдинг", "Другое"];
 const locationOptions = ["Новосибирск", "Пригород (до 30 км)", "Другое"];
-const budgetOptions = [
-  "30-50",
-  "51-75",
-  "76-100",
-  "101-150",
-  "151-200",
-  "Более 200",
-];
+const budgetOptions = ["30-50", "51-75", "76-100", "101-150", "151-200", "Более 200"];
 
 const seasonRates = {
   январь: { "вс-чт": 11000, "пт-сб": 14000 },
@@ -54,12 +33,12 @@ const guestMultiplier = {
 };
 
 const locationExtra = {
-  Новосибирск: 0,
+  "Новосибирск": 0,
   "Пригород (до 30 км)": 5000,
-  Другое: 1.5,
+  "Другое": 1.5,
 };
 
-let userSessions = new Map();
+let userSessions = {};
 let lastSurveyTime = {};
 
 const images = [
@@ -86,8 +65,7 @@ function calculatePrice(session) {
   let guestFactor = guestMultiplier[session.guests] || 1;
   let locationFactor = locationExtra[session.location] || 1;
   let totalPrice = baseRate * session.hours * guestFactor;
-  totalPrice =
-    locationFactor === 5000 ? totalPrice + 5000 : totalPrice * locationFactor;
+  totalPrice = locationFactor === 5000 ? totalPrice + 5000 : totalPrice * locationFactor;
   return totalPrice;
 }
 
@@ -96,18 +74,12 @@ function getBaseRate(dateString) {
   if (!date) return 15000;
 
   const months = Object.keys(seasonRates);
-  let monthName =
-    months.find((m) => dateString.toLowerCase().includes(m)) ||
-    months[date.getMonth()];
+  let monthName = months.find((m) => dateString.toLowerCase().includes(m)) || months[date.getMonth()];
   let day = date.getDate();
   let dayOfWeek = date.getDay();
   let rateType = dayOfWeek >= 5 ? "пт-сб" : "вс-чт";
 
-  return monthName === "декабрь"
-    ? day >= 15
-      ? seasonRates[monthName]["с 15"]
-      : seasonRates[monthName]["до 14"]
-    : seasonRates[monthName][rateType] || 15000;
+  return monthName === "декабрь" ? (day >= 15 ? seasonRates[monthName]["с 15"] : seasonRates[monthName]["до 14"]) : seasonRates[monthName][rateType] || 15000;
 }
 
 function parseDate(input) {
@@ -116,20 +88,7 @@ function parseDate(input) {
 
   let day = parseInt(dateParts[1]);
   let monthName = dateParts[2].toLowerCase();
-  const months = {
-    январь: 0,
-    февраль: 1,
-    март: 2,
-    апрель: 3,
-    май: 4,
-    июнь: 5,
-    июль: 6,
-    август: 7,
-    сентябрь: 8,
-    октябрь: 9,
-    ноябрь: 10,
-    декабрь: 11,
-  };
+  const months = { январь: 0, февраль: 1, март: 2, апрель: 3, май: 4, июнь: 5, июль: 6, август: 7, сентябрь: 8, октябрь: 9, ноябрь: 10, декабрь: 11 };
   if (!(monthName in months)) return null;
 
   let year = new Date().getFullYear();
@@ -152,21 +111,10 @@ function askGuests(chatId) {
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
-
-  userSessions.set(userId, { isSurveyActive: false });
-
-  bot.sendMessage(
-    chatId,
-    "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Поехали 🚂", callback_data: "start_survey" }],
-        ],
-      },
-    }
-  );
+  userSessions[chatId] = { isSurveyActive: false };
+  bot.sendMessage(chatId, "Добро пожаловать! Нажмите 'Поехали' для начала.", {
+    reply_markup: { inline_keyboard: [[{ text: "Поехали 🚂", callback_data: "start_survey" }]] },
+  });
 });
 
 bot.onText(/\/survey/, async (msg) => {
@@ -175,51 +123,45 @@ bot.onText(/\/survey/, async (msg) => {
   const username = msg.from.username
     ? `@${msg.from.username}`
     : `[Профиль](tg://user?id=${userId})`;
-
   const now = Date.now();
-  if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
-    return bot.sendMessage(
-      chatId,
-      "⛔ Подождите минуту перед повторным запуском опроса."
-    );
-  }
 
-  lastSurveyTime[userId] = now;
+  // Удаляем старые сообщения бота, если есть
+  await deletePreviousBotMessages(chatId);
 
-  userSessions.set(userId, {
+  // Удаляем старую сессию и создаем новую
+  userSessions[chatId] = {
     userId,
     username,
     isSurveyActive: true,
     botMessages: [],
-  });
+  };
 
-  await deletePreviousBotMessages(userId, chatId);
+  lastSurveyTime[userId] = now;
 
   askDate(chatId);
 });
 
-async function deletePreviousBotMessages(userId, chatId) {
-  const session = userSessions.get(userId);
-  if (session?.botMessages?.length) {
-    for (const messageId of session.botMessages) {
+async function deletePreviousBotMessages(chatId) {
+  if (userSessions[chatId]?.botMessages?.length) {
+    for (const messageId of userSessions[chatId].botMessages) {
       try {
         await bot.deleteMessage(chatId, messageId);
       } catch (err) {
         console.error(`Ошибка удаления сообщения ${messageId}:`, err.message);
       }
     }
-    session.botMessages = [];
+    userSessions[chatId].botMessages = [];
   }
 }
 
+// Функция отправки сообщений с сохранением ID сообщений бота
 async function sendBotMessage(chatId, text, options = {}) {
   try {
-    const sentMessage = await bot.sendMessage(chatId, text, options);
-    const userId = chatId; // userId и chatId совпадают для личных чатов
-    const session = userSessions.get(userId);
-    if (session) {
-      session.botMessages.push(sentMessage.message_id);
+    if (!userSessions[chatId]) {
+      userSessions[chatId] = { botMessages: [] };
     }
+    const sentMessage = await bot.sendMessage(chatId, text, options);
+    userSessions[chatId].botMessages.push(sentMessage.message_id);
   } catch (err) {
     console.error("Ошибка отправки сообщения:", err.message);
   }
@@ -338,7 +280,6 @@ const pendingRequests = {}; // Храним активные запросы
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
-  const session = userSessions.get(userId);
   const username = query.from.username ? `@${query.from.username}` : null;
   const phoneNumber = query.from.phone_number
     ? `📞 ${query.from.phone_number}`
@@ -352,16 +293,12 @@ bot.on("callback_query", async (query) => {
           Date.now() - lastSurveyTime[userId] < 60000
         ) {
           return bot.answerCallbackQuery(query.id, {
-            text: "⛔ Подождите минуту перед повторным запуском опроса.",
+            text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
             show_alert: true,
           });
         }
         lastSurveyTime[userId] = Date.now();
-        userSessions.set(userId, {
-          userId,
-          username: session.username,
-          isSurveyActive: true,
-        });
+        userSessions[chatId] = { userId, username, isSurveyActive: true };
         askDate(chatId);
         break;
 
@@ -386,11 +323,12 @@ bot.on("callback_query", async (query) => {
         break;
 
       case "oper_mes":
-        if (!session.username) {
-          return bot.sendMessage(
+        if (!session.username && !session.phoneNumber) {
+          bot.sendMessage(
             chatId,
-            "❌ Мы не можем отправить ваши данные оператору. Напишите @yuriy_vel"
+            "❌ Мы не можем отправить ваши данные оператору. Пожалуйста, напишите Юрию напрямую: @yuriy_vel"
           );
+          return;
         }
 
         if (pendingRequests[userId]) {
@@ -400,9 +338,14 @@ bot.on("callback_query", async (query) => {
           });
         }
 
-        pendingRequests[userId] = true;
+        pendingRequests[userId] = true; // Фиксируем заявку
 
-        let adminMessage = `📩 *Новая заявка!*\n👤 *Пользователь*: ${session.username}\n💬 Нажал кнопку "Свяжите меня с человеком".`;
+        let adminMessage = `📩 *Новая заявка!*
+        👤 *Пользователь*: ${
+          session.username || `📞 ${session.phoneNumber}` || "Неизвестный"
+        }
+        💬 Нажал кнопку "Свяжите меня с человеком".`;
+
         await bot.sendMessage(adminChatId, adminMessage, {
           parse_mode: "Markdown",
         });
