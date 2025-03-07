@@ -80,6 +80,10 @@ const images = [
   },
 ];
 
+function escapeMarkdownV2(text) {
+  return text.replace(/[_*[\]()~`>#+-=|{}.!]/g, "\\$&");
+}
+
 function calculatePrice(session) {
   let baseRate = getBaseRate(session.date);
   let guestFactor = guestMultiplier[session.guests] || 1;
@@ -336,7 +340,12 @@ function sendPackageImages(chatId, eventType) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-          [{ text: "Другие пакетные предложения", callback_data: "show_packages" }],
+          [
+            {
+              text: "Другие пакетные предложения",
+              callback_data: "show_packages",
+            },
+          ],
         ],
       },
     });
@@ -348,11 +357,16 @@ bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
   const username = query.from.username ? `@${query.from.username}` : null;
-  const phoneNumber = query.from.phone_number ? `📞 ${query.from.phone_number}` : null;
+  const phoneNumber = query.from.phone_number
+    ? `📞 ${query.from.phone_number}`
+    : null;
 
   switch (query.data) {
     case "start_survey":
-      if (lastSurveyTime[userId] && Date.now() - lastSurveyTime[userId] < 60000) {
+      if (
+        lastSurveyTime[userId] &&
+        Date.now() - lastSurveyTime[userId] < 60000
+      ) {
         return bot.answerCallbackQuery(query.id, {
           text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
           show_alert: true,
@@ -389,10 +403,15 @@ bot.on("callback_query", async (query) => {
 
       let userInfo = `👤 Пользователь: [Профиль](tg://user?id=${userId})\n`;
       if (session.username) {
-        userInfo += `🔹 Ник: ${escapeMarkdown(session.username)}\n`;
+        userInfo += `🔹 Ник: ${escapeMarkdownV2(session.username)}\n`;
       }
 
-      await bot.sendMessage(adminChatId, `📩 *Новая заявка!*\n${userInfo}💬 Нажал кнопку "Свяжите меня с человеком".`, { parse_mode: "MarkdownV2" });
+      await bot.sendMessage(
+        adminChatId,
+        `📩 *Новая заявка!*\n${userInfo}💬 Нажал кнопку "Свяжите меня с человеком".`,
+        { parse_mode: "MarkdownV2" }
+      );
+
       bot.answerCallbackQuery(query.id, { text: "✅ Заявка обработана!" });
       break;
   }
@@ -405,35 +424,45 @@ function sendSummary(chatId) {
   if (!session.date || !session.event || !session.guests) return; // Проверяем, что сессия полная
 
   let totalPrice = calculatePrice(session);
-  const summaryMessage =
+
+  let summaryMessage =
     `📩 *Новый опрос*\n` +
     `👤 *Пользователь*: [Профиль](tg://user?id=${chatId})\n` +
-    `📅 *Дата*: ${session.date}\n` +
-    `🎉 *Событие*: ${session.event}\n` +
-    `👥 *Гости*: ${session.guests}\n` +
-    `📍 *Локация*: ${session.location}\n` +
-    `⏳ *Длительность*: ${session.hours} ч.\n` +
-    `💰 *Ожидания по бюджету*: ${session.budget} тыс. ₽\n` +
-    `🔮 *3 слова про мероприятие*: ${session.words}\n` +
-    `🖼 *Выбранный стиль*: ${session.selectedImage}\n` +
-    `🎁 *Выбранный бонус*: ${session.bonus}\n` +
+    `📅 *Дата*: ${escapeMarkdownV2(session.date)}\n` +
+    `🎉 *Событие*: ${escapeMarkdownV2(session.event)}\n` +
+    `👥 *Гости*: ${escapeMarkdownV2(session.guests)}\n` +
+    `📍 *Локация*: ${escapeMarkdownV2(session.location)}\n` +
+    `⏳ *Длительность*: ${escapeMarkdownV2(session.hours.toString())} ч.\n` +
+    `💰 *Ожидания по бюджету*: ${escapeMarkdownV2(session.budget)} тыс. ₽\n` +
+    `🔮 *3 слова про мероприятие*: ${escapeMarkdownV2(session.words)}\n` +
+    `🖼 *Выбранный стиль*: ${escapeMarkdownV2(session.selectedImage)}\n` +
+    `🎁 *Выбранный бонус*: ${escapeMarkdownV2(session.bonus)}\n` +
     `💵 *Итоговая стоимость*: ${totalPrice.toLocaleString()}₽`;
 
-  bot.sendMessage(chatId, `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
-        [{ text: "Интересные пакетные предложения", callback_data: "show_packages" }],
-      ],
-    },
-  });
+  bot.sendMessage(
+    chatId,
+    `✅ Ваша ориентировочная стоимость: ${totalPrice.toLocaleString()}₽`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Свяжите меня с человеком", callback_data: "oper_mes" }],
+          [
+            {
+              text: "Интересные пакетные предложения",
+              callback_data: "show_packages",
+            },
+          ],
+        ],
+      },
+    }
+  );
 
   bot.sendMessage(adminChatId, summaryMessage, { parse_mode: "MarkdownV2" });
 
   delete userSessions[chatId]; // Очищаем данные только после отправки!
 }
 
- // Объект для отслеживания заявок
+// Объект для отслеживания заявок
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
