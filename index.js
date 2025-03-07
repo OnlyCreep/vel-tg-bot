@@ -593,9 +593,11 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 
   if (data === "skip_words") {
-    userState[chatId].threeWords = "Пропущено";
-    userState[chatId].step++;
-    await askImageChoice(chatId);
+    if (userState[chatId].step === 7) { // ✅ Проверяем, чтобы не было повторного вызова
+      userState[chatId].threeWords = "Пропущено";
+      userState[chatId].step++;
+      await askImageChoice(chatId);
+    }
   }
 });
 
