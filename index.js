@@ -342,7 +342,7 @@ bot.on("message", async (msg) => {
       state.package = text;
       await bot.sendMessage(
         chatId,
-        `✅ Вы выбрали пакет "${text}". Вот примеры оформления:`
+        `✅ Вы выбрали пакет "${text}".`
       );
 
       const packageImages = {
