@@ -89,7 +89,7 @@ bot.on("callback_query", async (callbackQuery) => {
     userState[chatId] = { step: 1, baseRate: 15000 };
     await bot.sendMessage(
       chatId,
-      "📆 Введите дату мероприятия (например, 15 январь)"
+      "📆 Введите дату мероприятия (например, 15 января)"
     );
   }
 });
@@ -639,7 +639,7 @@ bot.on("callback_query", async (callbackQuery) => {
 
 function getSeasonRate(day, monthInput) {
   const monthNames = {
-    январь: "январь",
+    января: "января",
     февраль: "февраль",
     март: "март",
     апрель: "апрель",
