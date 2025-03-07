@@ -510,7 +510,7 @@ async function handleBonus(chatId, text) {
     }
   );
 
-  await sendAdminSummary(chatId);
+  await sendAdminSummary(chatId); // ✅ Теперь админ получит сообщение после завершения опроса
 }
 
 // Отправка результатов админу
@@ -519,44 +519,64 @@ async function sendAdminSummary(chatId) {
   const username = state.username || "неизвестно";
 
   const summaryMessage = `
-  📩 *Новый опрос*\n
-  👤 *Пользователь*: ${username}\n
-  📅 *Дата*: ${state.date}\n
-  🎉 *Событие*: ${state.event}\n
-  👥 *Гости*: ${state.guestCount}\n
-  📍 *Локация*: ${state.location}\n
-  ⏳ *Длительность*: ${state.hours} ч.\n
-  💰 *Ожидания по бюджету*: ${state.budget} тыс. ₽\n
-  🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
-  🖼 *Выбранный стиль*: Картинка №${state.imageChoice}\n
-  🎁 *Выбранный бонус*: ${state.bonus}\n
-  📦 *Выбранный пакет услуг*: ${state.package || "Не выбрано"}\n
-  💵 *Итоговая стоимость*: ${state.totalPrice}₽
-  `;
+📩 *Новый опрос*\n
+👤 *Пользователь*: ${username}\n
+📅 *Дата*: ${state.date}\n
+🎉 *Событие*: ${state.event}\n
+👥 *Гости*: ${state.guestCount}\n
+📍 *Локация*: ${state.location}\n
+⏳ *Длительность*: ${state.hours} ч.\n
+💰 *Ожидания по бюджету*: ${state.budget} тыс. ₽\n
+🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
+🖼 *Выбранный стиль*: ${state.imageChoice}\n
+🎁 *Выбранный бонус*: ${state.bonus}\n
+📦 *Выбранный пакет услуг*: ${state.package || "Не выбрано"}\n
+💵 *Итоговая стоимость*: ${state.totalPrice}₽
+`;
+
+  console.log(`Отправка админу:\n${summaryMessage}`); // ✅ Логирование в консоль
 
   await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
     parse_mode: "Markdown",
   });
 }
 
-// Обработка "Свяжите меня с человеком"
 bot.on("callback_query", async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
-  const username = userState[chatId].username || "неизвестно";
+  const data = callbackQuery.data;
 
-  if (callbackQuery.data === "contact_me") {
+  if (data === "contact_me") {
+    if (userState[chatId]?.contactRequested) {
+      return bot.answerCallbackQuery(callbackQuery.id, {
+        text: "Вы уже отправили запрос, ожидайте ответа.",
+        show_alert: true,
+      });
+    }
+
+    const contactInfo = await checkUserContact(chatId);
+    if (!contactInfo) return;
+
+    userState[chatId].contactRequested = true; // Флаг, чтобы предотвратить дублирование
+
     await bot.sendMessage(
       ADMIN_CHAT_ID,
-      `📩 Новая заявка!\n👤 Пользователь: ${username}\n💬 Нажал кнопку "Свяжите меня с человеком".`
+      `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
     );
+
     await bot.sendMessage(
       chatId,
       "Ваш запрос отправлен. Мы скоро с вами свяжемся!"
     );
   }
 
-  if (callbackQuery.data === "package_offers") {
+  if (data === "package_offers") {
     await askPackageOffer(chatId);
+  }
+
+  if (data === "skip_words") {
+    userState[chatId].threeWords = "Пропущено";
+    userState[chatId].step++;
+    await askImageChoice(chatId);
   }
 });
 
