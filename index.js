@@ -152,34 +152,48 @@ function askGuests(chatId) {
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
   userSessions.set(userId, { isSurveyActive: false });
-  bot.sendMessage(chatId, "Добро пожаловать! Нажмите 'Поехали' для начала.", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "Поехали 🚂", callback_data: "start_survey" }],
-      ],
-    },
-  });
+
+  bot.sendMessage(
+    chatId,
+    "Важными факторами успешного праздника является слаженная работа ведущего и DJ, а также наличие хорошего оборудования. Стоимость включает эти позиции.\n\n(Ведущий+DJ+Оборудование)",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Поехали 🚂", callback_data: "start_survey" }],
+        ],
+      },
+    }
+  );
 });
 
 bot.onText(/\/survey/, async (msg) => {
   const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const username = msg.from.username
+    ? `@${msg.from.username}`
+    : `[Профиль](tg://user?id=${userId})`;
+
+  const now = Date.now();
+  if (lastSurveyTime[userId] && now - lastSurveyTime[userId] < 60000) {
+    return bot.sendMessage(
+      chatId,
+      "⛔ Подождите минуту перед повторным запуском опроса."
+    );
+  }
+
+  lastSurveyTime[userId] = now;
+
   userSessions.set(userId, {
     userId,
     username,
     isSurveyActive: true,
     botMessages: [],
   });
-  const userId = msg.from.id;
-  const username = msg.from.username
-    ? `@${msg.from.username}`
-    : `[Профиль](tg://user?id=${userId})`;
-  const now = Date.now();
 
-  // Удаляем старые сообщения бота, если есть
   await deletePreviousBotMessages(userId, chatId);
-
-  lastSurveyTime[userId] = now;
 
   askDate(chatId);
 });
@@ -198,14 +212,14 @@ async function deletePreviousBotMessages(userId, chatId) {
   }
 }
 
-// Функция отправки сообщений с сохранением ID сообщений бота
 async function sendBotMessage(chatId, text, options = {}) {
   try {
-    if (!userSessions[chatId]) {
-      userSessions[chatId] = { botMessages: [] };
-    }
     const sentMessage = await bot.sendMessage(chatId, text, options);
-    userSessions[chatId].botMessages.push(sentMessage.message_id);
+    const userId = chatId; // userId и chatId совпадают для личных чатов
+    const session = userSessions.get(userId);
+    if (session) {
+      session.botMessages.push(sentMessage.message_id);
+    }
   } catch (err) {
     console.error("Ошибка отправки сообщения:", err.message);
   }
@@ -324,6 +338,7 @@ const pendingRequests = {}; // Храним активные запросы
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
+  const session = userSessions.get(userId);
   const username = query.from.username ? `@${query.from.username}` : null;
   const phoneNumber = query.from.phone_number
     ? `📞 ${query.from.phone_number}`
@@ -337,12 +352,16 @@ bot.on("callback_query", async (query) => {
           Date.now() - lastSurveyTime[userId] < 60000
         ) {
           return bot.answerCallbackQuery(query.id, {
-            text: "⛔ Пожалуйста, подождите 1 минуту перед повторным запуском опроса.",
+            text: "⛔ Подождите минуту перед повторным запуском опроса.",
             show_alert: true,
           });
         }
         lastSurveyTime[userId] = Date.now();
-        userSessions[chatId] = { userId, username, isSurveyActive: true };
+        userSessions.set(userId, {
+          userId,
+          username: session.username,
+          isSurveyActive: true,
+        });
         askDate(chatId);
         break;
 
@@ -367,18 +386,10 @@ bot.on("callback_query", async (query) => {
         break;
 
       case "oper_mes":
-        const session = userSessions[chatId];
-        if (!session) {
+        if (!session.username) {
           return bot.sendMessage(
             chatId,
-            "❌ Произошла ошибка. Попробуйте позже."
-          );
-        }
-
-        if (!session.username && !session.phoneNumber) {
-          return bot.sendMessage(
-            chatId,
-            "❌ Мы не можем отправить ваши данные оператору. Пожалуйста, напишите Юрию напрямую: @yuriy_vel"
+            "❌ Мы не можем отправить ваши данные оператору. Напишите @yuriy_vel"
           );
         }
 
@@ -389,12 +400,9 @@ bot.on("callback_query", async (query) => {
           });
         }
 
-        pendingRequests[userId] = true; // Фиксируем заявку
+        pendingRequests[userId] = true;
 
-        let adminMessage = `📩 *Новая заявка!*
-          👤 *Пользователь*: ${session.username || `📞 ${session.phoneNumber}`}
-          💬 Нажал кнопку "Свяжите меня с человеком".`;
-
+        let adminMessage = `📩 *Новая заявка!*\n👤 *Пользователь*: ${session.username}\n💬 Нажал кнопку "Свяжите меня с человеком".`;
         await bot.sendMessage(adminChatId, adminMessage, {
           parse_mode: "Markdown",
         });
