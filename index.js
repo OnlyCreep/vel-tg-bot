@@ -105,15 +105,27 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 });
 
+const monthNames = {
+  января: "январь",
+  февраля: "февраль",
+  марта: "март",
+  апреля: "апрель",
+  мая: "май",
+  июня: "июнь",
+  июля: "июль",
+  августа: "август",
+  сентября: "сентябрь",
+  октября: "октябрь",
+  ноября: "ноябрь",
+  декабря: "декабрь",
+};
+
 // Обработка текста пользователя
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
-
-  // Если сообщение в чате админа - игнорируем
-  if (chatId === ADMIN_CHAT_ID) return;
+  if (chatId === ADMIN_CHAT_ID) return; // Не отвечаем в чате админа
 
   const text = msg.text.trim();
-
   if (msg.text.startsWith("/")) return;
 
   if (!userState[chatId] || !userState[chatId].step) {
@@ -135,20 +147,26 @@ bot.on("message", async (msg) => {
 
   switch (state.step) {
     case 1:
-      const dateMatch = text.match(/^(\d{1,2})\s([а-я]+)$/i);
+      const dateMatch = text.match(/^(\d{1,2})\s([а-яё]+)$/i);
       if (!dateMatch) {
         return bot.sendMessage(chatId, "Введите дату в формате: 15 января");
       }
 
       const day = parseInt(dateMatch[1]);
-      const month = dateMatch[2].toLowerCase();
+      const monthInput = dateMatch[2].toLowerCase();
+
+      if (!monthNames.hasOwnProperty(monthInput)) {
+        return bot.sendMessage(chatId, "Некорректный месяц. Попробуйте снова.");
+      }
+
+      const month = monthNames[monthInput]; // Преобразуем в именительный падеж
       const rate = getSeasonRate(day, month);
 
       if (!rate) {
         return bot.sendMessage(chatId, "Некорректный месяц. Попробуйте снова.");
       }
 
-      state.date = `${day} ${month}`;
+      state.date = `${day} ${monthInput}`; // Оставляем в родительном падеже
       state.baseRate = rate;
       state.step++;
       await bot.sendMessage(chatId, "🎉 Какое событие?", {
