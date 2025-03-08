@@ -319,7 +319,7 @@ bot.on("message", async (msg) => {
                   ],
                   [
                     {
-                      text: "Другие пакетные предложения",
+                      text: "Интересные пакетные предложения",
                       callback_data: "package_offers",
                     },
                   ],
