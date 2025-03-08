@@ -532,12 +532,11 @@ async function handleBonus(chatId, text) {
 // Отправка результатов админу
 async function sendAdminSummary(msg) {
   const state = userState[msg.chat.id];
-  const username = state.username || "неизвестно";
   console.log(msg);
 
   const summaryMessage = `
 📩 *Новый опрос*\n
-👤 *Пользователь*: ${username}\n
+👤 *Пользователь*: @${msg.chat.username??'Неизвестно'}\n
 📅 *Дата*: ${state.date}\n
 🎉 *Событие*: ${state.event}\n
 👥 *Гости*: ${state.guestCount}\n
