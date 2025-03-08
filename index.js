@@ -36,6 +36,7 @@ const eventOptions = [
   "Обучение/Тимбилдинг",
   "Другое",
 ];
+
 const guestMultiplier = {
   "До 50": 1,
   "50-75": 1.1,
@@ -44,6 +45,7 @@ const guestMultiplier = {
   "151-200": 2,
   "Более 200": 2.5,
 };
+
 const locationExtra = {
   Новосибирск: 0,
   "Пригород (до 30 км)": 5000,
@@ -66,7 +68,7 @@ const bonusOptions = [
 // Команда /start
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  userState[chatId] = { step: 0 }; // Начальный шаг 0
+  userState[chatId] = { step: 1, totalPrice: 15000 };
 
   await bot.sendMessage(
     chatId,
@@ -121,14 +123,15 @@ const monthNames = {
 };
 
 bot.on("message", async (msg) => {
-  console.log("Новое сообщение:", msg); // Логирование всех сообщений для отладки
-
   const chatId = msg.chat.id;
   if (chatId === ADMIN_CHAT_ID) return; // Игнорируем сообщения от админа
 
   // Проверяем, есть ли текст или контакт
   if (!msg.text && !msg.contact) {
-    return bot.sendMessage(chatId, "⚠️ Пожалуйста, отправьте текстовое сообщение или контакт.");
+    return bot.sendMessage(
+      chatId,
+      "⚠️ Пожалуйста, отправьте текстовое сообщение или контакт."
+    );
   }
 
   // Если пользователь отправил контакт
@@ -152,7 +155,9 @@ bot.on("message", async (msg) => {
       "Добро пожаловать! Нажмите 'Поехали' для начала.",
       {
         reply_markup: {
-          inline_keyboard: [[{ text: "Поехали🚂", callback_data: "start_survey" }]],
+          inline_keyboard: [
+            [{ text: "Поехали🚂", callback_data: "start_survey" }],
+          ],
         },
       }
     );
@@ -166,27 +171,31 @@ bot.on("message", async (msg) => {
     case 1:
       const dateMatch = text.match(/^(\d{1,2})\s([а-яё]+)$/i);
       if (!dateMatch) {
-        return bot.sendMessage(chatId, "Введите дату в формате: 15 января");
+        return bot.sendMessage(chatId, "❗ Введите дату в формате: 15 января");
       }
 
       const day = parseInt(dateMatch[1]);
       const monthInput = dateMatch[2].toLowerCase();
-      state.date = `${day} ${monthInput}`;
-      state.step++;
 
-      console.log("Дата успешно сохранена:", state.date);
+      state.date = `${day} ${monthInput}`;
+      state.baseRate = getBaseRate(day, monthInput); // Получаем базовую ставку
+      state.step++;
 
       await bot.sendMessage(chatId, "🎉 Какое событие?", {
         reply_markup: {
           keyboard: eventOptions.map((e) => [e]),
           one_time_keyboard: true,
+          resize_keyboard: true,
         },
       });
       break;
 
     case 2:
       if (!eventOptions.includes(text)) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+        return bot.sendMessage(
+          chatId,
+          "Выберите один из предложенных вариантов."
+        );
       }
 
       state.event = text;
@@ -201,65 +210,99 @@ bot.on("message", async (msg) => {
 
     case 3:
       if (!guestMultiplier[text]) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Выберите один из предложенных вариантов."
+        );
       }
 
       state.guestCount = text;
+      state.totalPrice = state.baseRate * guestMultiplier[text]; // Умножаем базовую ставку на коэффициент гостей
       state.step++;
+
       await bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
         reply_markup: {
           keyboard: Object.keys(locationExtra).map((e) => [e]),
           one_time_keyboard: true,
+          resize_keyboard: true,
         },
       });
       break;
 
     case 4:
       if (!locationExtra.hasOwnProperty(text)) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Выберите один из предложенных вариантов."
+        );
       }
 
       state.location = text;
+
+      if (text === "Пригород (до 30 км)") {
+        state.totalPrice += 5000; // Добавляем фиксированную сумму
+      } else if (text === "Другое") {
+        state.totalPrice *= 1.5; // Умножаем на коэффициент
+      }
+
       state.step++;
+
       await bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
       break;
 
     case 5:
       const hours = parseInt(text);
       if (isNaN(hours) || hours <= 0) {
-        return bot.sendMessage(chatId, "Введите пожалуйста число.");
+        return bot.sendMessage(chatId, "❗ Введите пожалуйста число.");
       }
 
       state.hours = hours;
-      state.totalPrice = (state.baseRate || 15000) * state.hours;
+      state.totalPrice *= state.hours; // Умножаем на количество часов
       state.step++;
 
-      await bot.sendMessage(chatId, "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)", {
-        reply_markup: {
-          keyboard: budgetOptions.map((e) => [e]),
-          one_time_keyboard: true,
-        },
-      });
+      await bot.sendMessage(
+        chatId,
+        "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
+        {
+          reply_markup: {
+            keyboard: budgetOptions.map((e) => [e]),
+            one_time_keyboard: true,
+            resize_keyboard: true,
+          },
+        }
+      );
       break;
 
     case 6:
       if (!budgetOptions.includes(text)) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Выберите один из предложенных вариантов."
+        );
       }
 
       state.budget = text;
       state.step++;
-      await bot.sendMessage(chatId, "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?", {
-        reply_markup: {
-          inline_keyboard: [[{ text: "Пропустить", callback_data: "skip_words" }]],
-        },
-      });
+      await bot.sendMessage(
+        chatId,
+        "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Пропустить", callback_data: "skip_words" }],
+            ],
+          },
+        }
+      );
       break;
 
     case 7:
       const words = text.split(/\s+/);
       if (words.length !== 3) {
-        return bot.sendMessage(chatId, "Введите ровно три слова, разделенные пробелом.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Введите ровно три слова, разделенные пробелом."
+        );
       }
 
       state.threeWords = text;
@@ -273,7 +316,10 @@ bot.on("message", async (msg) => {
 
     case 9:
       if (!bonusOptions.includes(text)) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных бонусов.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Выберите один из предложенных бонусов."
+        );
       }
 
       state.bonus = text;
@@ -285,8 +331,18 @@ bot.on("message", async (msg) => {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-              [{ text: "Интересные пакетные предложения", callback_data: "package_offers" }],
+              [
+                {
+                  text: "Свяжите меня с человеком",
+                  callback_data: "contact_me",
+                },
+              ],
+              [
+                {
+                  text: "Интересные пакетные предложения",
+                  callback_data: "package_offers",
+                },
+              ],
             ],
           },
         }
@@ -303,7 +359,10 @@ bot.on("message", async (msg) => {
       };
 
       if (!packageImages[text]) {
-        return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+        return bot.sendMessage(
+          chatId,
+          "❗ Выберите один из предложенных вариантов."
+        );
       }
 
       state.package = text;
@@ -316,13 +375,34 @@ bot.on("message", async (msg) => {
         reply_markup: {
           inline_keyboard: [
             [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-            [{ text: "Другие пакетные предложения", callback_data: "package_offers" }],
+            [
+              {
+                text: "Другие пакетные предложения",
+                callback_data: "package_offers",
+              },
+            ],
           ],
         },
       });
       break;
   }
 });
+
+function getBaseRate(day, monthInput) {
+  const month = monthInput.toLowerCase();
+  if (!seasonRates[month]) return 15000; // Если месяц не найден, оставляем базовую цену
+
+  if (month === "декабрь") {
+    return day < 15 ? seasonRates[month]["до 14"] : seasonRates[month]["с 15"];
+  }
+
+  const dateString = `${day} ${month} 2024`; // Добавляем год для корректной проверки дня недели
+  const weekday = moment(dateString, "D MMMM YYYY").isoWeekday();
+
+  return weekday < 5
+    ? seasonRates[month]["вс-чт"]
+    : seasonRates[month]["пт-сб"];
+}
 
 // Обработка бюджета
 async function askBudget(chatId) {
@@ -370,7 +450,7 @@ async function handleThreeWords(chatId, text) {
   if (words.length !== 3) {
     return bot.sendMessage(
       chatId,
-      "Введите ровно три слова, разделенные пробелом."
+      "❗ Введите ровно три слова, разделенные пробелом."
     );
   }
   userState[chatId].threeWords = text;
@@ -506,7 +586,6 @@ async function handleBonus(chatId, text) {
 // Отправка результатов админу
 async function sendAdminSummary(msg) {
   const state = userState[msg.chat.id];
-  console.log(msg);
 
   const summaryMessage = `
 📩 *Новый опрос*\n
@@ -520,7 +599,6 @@ async function sendAdminSummary(msg) {
 🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
 🖼 *Выбранный стиль*: ${state.imageChoice}\n
 🎁 *Выбранный бонус*: ${state.bonus}\n
-📦 *Выбранный пакет услуг*: ${state.package || "Не выбрано"}\n
 💵 *Итоговая стоимость*: ${state.totalPrice}₽
 `;
 
