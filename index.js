@@ -143,47 +143,6 @@ bot.on("message", async (msg) => {
     return;
   }
 
-  async function checkUsername(chatId) {
-    const user = await bot.getChat(chatId);
-    if (!user.username) {
-      await bot.sendMessage(
-        chatId,
-        "У вас не установлен username. Пожалуйста, перейдите в этот чат и свяжитесь с нами напрямую:",
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "Свяжитесь с нами",
-                  url: "t.me/yuriy_vel",
-                },
-              ],
-            ],
-          },
-        }
-      );
-      return false; // Возвращаем false, если username отсутствует
-    }
-    return true; // Возвращаем true, если username есть
-  }
-
-  let keyboard = {
-    inline_keyboard: [
-      [
-        {
-          text: "Свяжите меня с человеком",
-          callback_data: "contact_me",
-        },
-      ],
-      [
-        {
-          text: "Интересные пакетные предложения",
-          callback_data: "package_offers",
-        },
-      ],
-    ],
-  };
-
   const state = userState[chatId];
 
   switch (state.step) {
@@ -345,15 +304,44 @@ bot.on("message", async (msg) => {
       state.bonus = text;
       state.step++;
 
-      if (!(await checkUsername(chatId))) return; // Прерываем выполнение, если нет username
-
       await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-        { reply_markup: keyboard }
+        {
+          reply_markup: msg.chat.username
+            ? {
+                inline_keyboard: [
+                  [
+                    {
+                      text: "Свяжите меня с человеком",
+                      callback_data: "contact_me",
+                    },
+                  ],
+                  [
+                    {
+                      text: "Другие пакетные предложения",
+                      callback_data: "package_offers",
+                    },
+                  ],
+                ],
+              }
+            : {
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: "Свяжитесь с нами",
+                        url: "t.me/yuriy_vel",
+                      },
+                    ],
+                  ],
+                },
+              },
+        }
       );
+      await sendAdminSummary(msg);
+      break;
 
-    // ✅ Добавляем ту же проверку перед выбором пакетного предложения
     case 10:
       if (
         !["Корпоратив", "Выпускной", "День рождения", "Свадьба"].includes(text)
@@ -363,9 +351,6 @@ bot.on("message", async (msg) => {
           "Выберите один из предложенных вариантов."
         );
       }
-
-      // Проверяем username перед отправкой пакета
-      if (!(await checkUsername(chatId))) return;
 
       state.package = text;
       await bot.sendMessage(chatId, `✅ Вы выбрали пакет "${text}".`);
@@ -382,17 +367,35 @@ bot.on("message", async (msg) => {
       }
 
       await bot.sendMessage(chatId, "🔹 Узнать больше:", {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-            [
-              {
-                text: "Другие пакетные предложения",
-                callback_data: "package_offers",
+        reply_markup: msg.chat.username
+          ? {
+              inline_keyboard: [
+                [
+                  {
+                    text: "Свяжите меня с человеком",
+                    callback_data: "contact_me",
+                  },
+                ],
+                [
+                  {
+                    text: "Другие пакетные предложения",
+                    callback_data: "package_offers",
+                  },
+                ],
+              ],
+            }
+          : {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: "Свяжитесь с нами",
+                      url: "t.me/yuriy_vel",
+                    },
+                  ],
+                ],
               },
-            ],
-          ],
-        },
+            },
       });
       break;
   }
