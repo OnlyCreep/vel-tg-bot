@@ -140,10 +140,6 @@ bot.on("message", async (msg) => {
     }
     userState[chatId].phone = msg.contact.phone_number; // Сохраняем телефон
     userState[chatId].name = msg.contact.first_name; // Сохраняем имя
-
-    // Пересылаем контакт админу
-    await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
-    await bot.sendMessage(chatId, "✅ Контакт успешно отправлен админу.");
     return;
   }
 
@@ -586,18 +582,7 @@ bot.on("callback_query", async (callbackQuery) => {
   const data = callbackQuery.data;
 
   if (data === "package_offers") {
-    await bot.sendMessage(
-      chatId,
-      "🎁 Вот наши пакетные предложения:\n\n1️⃣ *Стандартный пакет*: Включает ведущего, DJ и базовое оборудование.\n\n2️⃣ *Премиум пакет*: Включает ведущего, DJ, световое шоу и фотографа.\n\n3️⃣ *VIP пакет*: Включает ведущего, DJ, живую музыку, фото и видеосъемку.",
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-          ],
-        },
-      }
-    );
+    await askPackageOffer(chatId);
   }
 });
 
@@ -658,6 +643,42 @@ async function askPackageOffer(chatId) {
     }
   );
 }
+
+bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text.trim();
+
+  if (!userState[chatId] || userState[chatId].step !== 10) return;
+
+  const packageImages = {
+    Корпоратив: ["./images/corporate1.jpg"],
+    Выпускной: ["./images/graduation1.jpg", "./images/graduation2.jpg"],
+    "День рождения": ["./images/birthday1.jpg"],
+    Свадьба: ["./images/wedding1.jpg", "./images/wedding2.jpg"],
+  };
+
+  if (!packageImages[text]) {
+    return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
+  }
+
+  userState[chatId].package = text;
+  await bot.sendMessage(chatId, `✅ Вы выбрали пакет "${text}".`);
+
+  // Отправка фотографий пакета
+  for (const image of packageImages[text]) {
+    await bot.sendPhoto(chatId, image);
+  }
+
+  // Сообщение "🔹 Узнать больше"
+  await bot.sendMessage(chatId, "🔹 Узнать больше:", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+        [{ text: "Другие пакетные предложения", callback_data: "package_offers" }],
+      ],
+    },
+  });
+});
 
 // Обработка выбора пакета
 async function handlePackageChoice(chatId, text) {
