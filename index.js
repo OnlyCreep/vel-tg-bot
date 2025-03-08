@@ -306,8 +306,9 @@ bot.on("message", async (msg) => {
       }
 
       state.threeWords = text;
-      state.step++;
-      await askBonus(chatId);
+      state.step++; // Увеличиваем шаг перед вызовом askImageChoice
+
+      await askImageChoice(chatId); // Вызываем функцию показа картинок
       break;
 
     case 8:
