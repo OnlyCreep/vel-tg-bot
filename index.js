@@ -533,7 +533,7 @@ async function handleBonus(chatId, text) {
 async function sendAdminSummary(chatId) {
   const state = userState[chatId];
   const username = state.username || "неизвестно";
-  console.log(msg.from);
+  console.log(msg);
 
   const summaryMessage = `
 📩 *Новый опрос*\n
@@ -550,8 +550,6 @@ async function sendAdminSummary(chatId) {
 📦 *Выбранный пакет услуг*: ${state.package || "Не выбрано"}\n
 💵 *Итоговая стоимость*: ${state.totalPrice}₽
 `;
-
-  console.log(`Отправка админу:\n${summaryMessage}`); // ✅ Логирование в консоль
 
   await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
     parse_mode: "Markdown",
