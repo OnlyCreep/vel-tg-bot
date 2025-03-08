@@ -326,7 +326,7 @@ bot.on("message", async (msg) => {
           },
         }
       );
-      await sendAdminSummary(chatId);
+      await sendAdminSummary(msg);
       break;
 
     case 10:
@@ -530,8 +530,8 @@ async function handleBonus(chatId, text) {
 }
 
 // Отправка результатов админу
-async function sendAdminSummary(chatId) {
-  const state = userState[chatId];
+async function sendAdminSummary(msg) {
+  const state = userState[msg.chat.id];
   const username = state.username || "неизвестно";
   console.log(msg);
 
