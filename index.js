@@ -656,7 +656,10 @@ async function askPackageOffer(chatId) {
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
-  const text = msg.text.trim();
+  
+  if (!msg.text) return; // Проверяем, есть ли текст, чтобы избежать ошибки
+
+  const text = msg.text ? msg.text.trim() : ""; // Безопасная обработка trim()
 
   if (!userState[chatId] || userState[chatId].step !== 10) return;
 
@@ -672,6 +675,11 @@ bot.on("message", async (msg) => {
   }
 
   userState[chatId].package = text;
+
+  // Отправляем фото выбранного пакета
+  for (const image of packageImages[text]) {
+    await bot.sendPhoto(chatId, image);
+  }
 
   // Сообщение "🔹 Узнать больше"
   await bot.sendMessage(chatId, "🔹 Узнать больше:", {
