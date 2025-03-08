@@ -533,7 +533,7 @@ async function handleBonus(chatId, text) {
 async function sendAdminSummary(chatId) {
   const state = userState[chatId];
   const username = state.username || "неизвестно";
-  console.log(state);
+  console.log(msg.from);
 
   const summaryMessage = `
 📩 *Новый опрос*\n
