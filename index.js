@@ -4,7 +4,7 @@ moment.locale("ru");
 
 // Укажите ваш токен
 const TOKEN = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
-const ADMIN_CHAT_ID = 1032236389;
+const ADMIN_CHAT_ID = -4715412192;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
@@ -175,7 +175,7 @@ bot.on("message", async (msg) => {
           one_time_keyboard: true,
         },
       });
-      break;
+    break;
 
     case 2:
       if (!eventOptions.includes(text)) {
@@ -340,10 +340,7 @@ bot.on("message", async (msg) => {
       }
 
       state.package = text;
-      await bot.sendMessage(
-        chatId,
-        `✅ Вы выбрали пакет "${text}".`
-      );
+      await bot.sendMessage(chatId, `✅ Вы выбрали пакет "${text}".`);
 
       const packageImages = {
         Корпоратив: ["./images/corporate1.jpg"],
@@ -566,30 +563,36 @@ bot.on("callback_query", async (callbackQuery) => {
   const data = callbackQuery.data;
 
   if (data === "contact_me") {
-      if (userState[chatId]?.contactRequested) {
-          return bot.answerCallbackQuery(callbackQuery.id, {
-              text: "Вы уже отправили запрос, ожидайте ответа.",
-              show_alert: true,
-          });
-      }
+    if (userState[chatId]?.contactRequested) {
+      return bot.answerCallbackQuery(callbackQuery.id, {
+        text: "Вы уже отправили запрос, ожидайте ответа.",
+        show_alert: true,
+      });
+    }
 
-      let contactInfo = await checkUserContact(chatId);
+    let contactInfo = await checkUserContact(chatId);
 
-      if (!userState[chatId].phone) {
-          await askForContact(chatId);
-          return bot.sendMessage(chatId, "После отправки контакта повторите запрос.");
-      }
-
-      contactInfo += `, 📞 Телефон: ${userState[chatId].phone}`;
-
-      userState[chatId].contactRequested = true;
-
-      await bot.sendMessage(
-          ADMIN_CHAT_ID,
-          `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
+    if (!userState[chatId].phone) {
+      await askForContact(chatId);
+      return bot.sendMessage(
+        chatId,
+        "После отправки контакта повторите запрос."
       );
+    }
 
-      await bot.sendMessage(chatId, "Ваш запрос отправлен. Мы скоро с вами свяжемся!");
+    contactInfo += `, 📞 Телефон: ${userState[chatId].phone}`;
+
+    userState[chatId].contactRequested = true;
+
+    await bot.sendMessage(
+      ADMIN_CHAT_ID,
+      `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
+    );
+
+    await bot.sendMessage(
+      chatId,
+      "Ваш запрос отправлен. Мы скоро с вами свяжемся!"
+    );
   }
 });
 
@@ -671,46 +674,45 @@ bot.onText(/\/survey/, async (msg) => {
 
 async function askForContact(chatId) {
   await bot.sendMessage(
-      chatId,
-      "Пожалуйста, отправьте свой контакт, нажав на кнопку ниже:",
-      {
-          reply_markup: {
-              keyboard: [
-                  [
-                      {
-                          text: "Отправить мой номер 📞",
-                          request_contact: true,
-                      },
-                  ],
-              ],
-              one_time_keyboard: true,
-              resize_keyboard: true,
-          },
-      }
+    chatId,
+    "Пожалуйста, отправьте свой контакт, нажав на кнопку ниже:",
+    {
+      reply_markup: {
+        keyboard: [
+          [
+            {
+              text: "Отправить мой номер 📞",
+              request_contact: true,
+            },
+          ],
+        ],
+        one_time_keyboard: true,
+        resize_keyboard: true,
+      },
+    }
   );
 }
 
 async function checkUserContact(chatId) {
   try {
-      const user = await bot.getChat(chatId);
+    const user = await bot.getChat(chatId);
 
-      let contactInfo = "";
+    let contactInfo = "";
 
-      if (user.username) {
-          contactInfo = `@${user.username}`;
-      } else if (user.first_name) {
-          contactInfo = `${user.first_name} ${user.last_name || ""}`.trim();
-      } else {
-          contactInfo = "Неизвестный пользователь";
-      }
+    if (user.username) {
+      contactInfo = `@${user.username}`;
+    } else if (user.first_name) {
+      contactInfo = `${user.first_name} ${user.last_name || ""}`.trim();
+    } else {
+      contactInfo = "Неизвестный пользователь";
+    }
 
-      return contactInfo;
+    return contactInfo;
   } catch (error) {
-      console.error("Ошибка получения данных пользователя:", error);
-      return "Ошибка получения данных";
+    console.error("Ошибка получения данных пользователя:", error);
+    return "Ошибка получения данных";
   }
 }
-
 
 function getSeasonRate(day, monthInput) {
   const monthNames = {
