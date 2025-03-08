@@ -632,10 +632,7 @@ bot.on("callback_query", async (callbackQuery) => {
 
     if (!userState[chatId].phone) {
       await askForContact(chatId);
-      return bot.sendMessage(
-        chatId,
-        "После отправки контакта повторите запрос."
-      );
+      return;
     }
 
     contactInfo += `, 📞 Телефон: ${userState[chatId].phone}`;
