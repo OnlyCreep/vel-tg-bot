@@ -125,8 +125,16 @@ bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   if (chatId === ADMIN_CHAT_ID) return; // Не отвечаем в чате админа
 
+  // Проверяем, есть ли текст в сообщении
+  if (!msg.text) {
+    return bot.sendMessage(
+      chatId,
+      "⚠️ Пожалуйста, отправьте текстовое сообщение."
+    );
+  }
+
   const text = msg.text.trim();
-  if (msg.text.startsWith("/")) return;
+  if (text.startsWith("/")) return;
 
   if (!userState[chatId] || !userState[chatId].step) {
     await bot.sendMessage(
@@ -175,7 +183,7 @@ bot.on("message", async (msg) => {
           one_time_keyboard: true,
         },
       });
-    break;
+      break;
 
     case 2:
       if (!eventOptions.includes(text)) {
@@ -304,15 +312,18 @@ bot.on("message", async (msg) => {
       state.bonus = text;
       state.step++;
 
-      let keyboard = types.InlineKeyboardMarkup()
-      let url_button = types.InlineKeyboardButton(text="Свяжите меня с человеком", url="t.me/yuriy_vel")
-      keyboard.add(url_button)
+      let keyboard = types.InlineKeyboardMarkup();
+      let url_button = types.InlineKeyboardButton(
+        (text = "Свяжите меня с человеком"),
+        (url = "t.me/yuriy_vel")
+      );
+      keyboard.add(url_button);
 
-    await bot.sendMessage(
+      await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
         { reply_markup: keyboard }
-    );
+      );
       await sendAdminSummary(msg);
       break;
 
@@ -523,7 +534,7 @@ async function sendAdminSummary(msg) {
 
   const summaryMessage = `
 📩 *Новый опрос*\n
-👤 *Пользователь*: @${msg.chat.username??'Неизвестно'}\n
+👤 *Пользователь*: @${msg.chat.username ?? "Неизвестно"}\n
 📅 *Дата*: ${state.date}\n
 🎉 *Событие*: ${state.event}\n
 👥 *Гости*: ${state.guestCount}\n
