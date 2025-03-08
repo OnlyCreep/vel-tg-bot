@@ -315,7 +315,17 @@ bot.on("message", async (msg) => {
       await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-        { reply_markup: keyboard }
+        { reply_markup: {
+          inline_keyboard: [
+            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+            [
+              {
+                text: "Интересные пакетные предложения",
+                callback_data: "package_offers",
+              },
+            ],
+          ],
+        }, }
       );
       await sendAdminSummary(msg);
       break;
