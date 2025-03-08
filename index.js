@@ -163,6 +163,30 @@ bot.on("message", async (msg) => {
 
   const state = userState[chatId];
 
+  if (!userState[chatId] || userState[chatId].step < 10) {
+    return;
+  }
+
+  // Проверяем, не завершился ли уже опрос
+  if (userState[chatId].step === 10 && text in packageImages) {
+    userState[chatId].package = text;
+
+    await bot.sendMessage(chatId, `✅ Вы выбрали пакет "${text}".`);
+
+    for (const image of packageImages[text]) {
+      await bot.sendPhoto(chatId, image);
+    }
+
+    await bot.sendMessage(chatId, "🔹 Узнать больше:", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+          [{ text: "Другие пакетные предложения", callback_data: "package_offers" }],
+        ],
+      },
+    });
+  }
+
   switch (state.step) {
     case 1:
       const dateMatch = text.match(/^(\d{1,2})\s([а-яё]+)$/i);
@@ -354,20 +378,6 @@ bot.on("message", async (msg) => {
       for (const image of packageImages[text]) {
         await bot.sendPhoto(chatId, image);
       }
-
-      await bot.sendMessage(chatId, "🔹 Узнать больше:", {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-            [
-              {
-                text: "Другие пакетные предложения",
-                callback_data: "package_offers",
-              },
-            ],
-          ],
-        },
-      });
       break;
   }
 });
@@ -662,12 +672,6 @@ bot.on("message", async (msg) => {
   }
 
   userState[chatId].package = text;
-  await bot.sendMessage(chatId, `✅ Вы выбрали пакет "${text}".`);
-
-  // Отправка фотографий пакета
-  for (const image of packageImages[text]) {
-    await bot.sendPhoto(chatId, image);
-  }
 
   // Сообщение "🔹 Узнать больше"
   await bot.sendMessage(chatId, "🔹 Узнать больше:", {
