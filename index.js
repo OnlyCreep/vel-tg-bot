@@ -312,13 +312,6 @@ bot.on("message", async (msg) => {
       state.bonus = text;
       state.step++;
 
-      let keyboard = types.InlineKeyboardMarkup();
-      let url_button = types.InlineKeyboardButton(
-        (text = "Свяжите меня с человеком"),
-        (url = "t.me/yuriy_vel")
-      );
-      keyboard.add(url_button);
-
       await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
