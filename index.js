@@ -66,7 +66,7 @@ const bonusOptions = [
 // Команда /start
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  userState[chatId] = {};
+  userState[chatId] = { step: 0 }; // Начальный шаг 0
 
   await bot.sendMessage(
     chatId,
@@ -125,19 +125,31 @@ bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   if (chatId === ADMIN_CHAT_ID) return; // Не отвечаем в чате админа
 
-  // Проверяем, есть ли текст в сообщении
-  if (!msg.text) {
+  // Проверяем, есть ли текст или контакт
+  if (!msg.text && !msg.contact) {
     return bot.sendMessage(
       chatId,
-      "⚠️ Пожалуйста, отправьте текстовое сообщение."
+      "⚠️ Пожалуйста, отправьте текстовое сообщение или контакт."
     );
+  }
+
+  // Обработка контактов (если пользователь отправил контакт)
+  if (msg.contact) {
+    if (!userState[chatId]) {
+      userState[chatId] = { step: 0 }; // Устанавливаем шаг
+    }
+    userState[chatId].phone = msg.contact.phone_number; // Сохраняем телефон
+    userState[chatId].name = msg.contact.first_name; // Сохраняем имя
+
+    await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id); // Пересылаем сообщение админу
+    return bot.sendMessage(chatId, "✅ Контакт успешно отправлен админу.");
   }
 
   const text = msg.text.trim();
   if (text.startsWith("/")) return;
 
-  if (!userState[chatId] || !userState[chatId].step) {
-    await bot.sendMessage(
+  if (!userState[chatId] || userState[chatId].step === 0) {
+    return bot.sendMessage(
       chatId,
       "Добро пожаловать! Нажмите 'Поехали' для начала.",
       {
@@ -148,7 +160,6 @@ bot.on("message", async (msg) => {
         },
       }
     );
-    return;
   }
 
   const state = userState[chatId];
@@ -163,19 +174,7 @@ bot.on("message", async (msg) => {
       const day = parseInt(dateMatch[1]);
       const monthInput = dateMatch[2].toLowerCase();
 
-      if (!monthNames.hasOwnProperty(monthInput)) {
-        return bot.sendMessage(chatId, "Некорректный месяц. Попробуйте снова.");
-      }
-
-      const month = monthNames[monthInput]; // Преобразуем в именительный падеж
-      const rate = getSeasonRate(day, month);
-
-      if (!rate) {
-        return bot.sendMessage(chatId, "Некорректный месяц. Попробуйте снова.");
-      }
-
-      state.date = `${day} ${monthInput}`; // Оставляем в родительном падеже
-      state.baseRate = rate;
+      state.date = `${day} ${monthInput}`;
       state.step++;
       await bot.sendMessage(chatId, "🎉 Какое событие?", {
         reply_markup: {
@@ -212,7 +211,6 @@ bot.on("message", async (msg) => {
       }
 
       state.guestCount = text;
-      state.baseRate *= guestMultiplier[text];
       state.step++;
       await bot.sendMessage(chatId, "📍 Где пройдет мероприятие?", {
         reply_markup: {
@@ -231,10 +229,6 @@ bot.on("message", async (msg) => {
       }
 
       state.location = text;
-      state.baseRate =
-        text === "Другое"
-          ? state.baseRate * 1.5
-          : state.baseRate + locationExtra[text];
       state.step++;
       await bot.sendMessage(chatId, "⏳ Сколько часов будет мероприятие?");
       break;
@@ -246,7 +240,6 @@ bot.on("message", async (msg) => {
       }
 
       state.hours = hours;
-      state.totalPrice = state.baseRate * hours;
       state.step++;
       await bot.sendMessage(
         chatId,
@@ -272,14 +265,7 @@ bot.on("message", async (msg) => {
       state.step++;
       await bot.sendMessage(
         chatId,
-        "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?",
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "Пропустить", callback_data: "skip_words" }],
-            ],
-          },
-        }
+        "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?"
       );
       break;
 
@@ -294,7 +280,7 @@ bot.on("message", async (msg) => {
 
       state.threeWords = text;
       state.step++;
-      await askImageChoice(chatId);
+      await askBonus(chatId);
       break;
 
     case 8:
@@ -315,17 +301,24 @@ bot.on("message", async (msg) => {
       await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-        { reply_markup: {
-          inline_keyboard: [
-            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-            [
-              {
-                text: "Интересные пакетные предложения",
-                callback_data: "package_offers",
-              },
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "Свяжите меня с человеком",
+                  callback_data: "contact_me",
+                },
+              ],
+              [
+                {
+                  text: "Интересные пакетные предложения",
+                  callback_data: "package_offers",
+                },
+              ],
             ],
-          ],
-        }, }
+          },
+        }
       );
       await sendAdminSummary(msg);
       break;
@@ -502,6 +495,18 @@ async function askBonus(chatId) {
   );
 }
 
+// Обработка получения контакта
+bot.on("contact", async (msg) => {
+  const chatId = msg.chat.id;
+  userState[chatId].phone = msg.contact.phone_number;
+  userState[chatId].name = msg.contact.first_name;
+
+  // Пересылаем контакт админу
+  await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
+
+  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен админу.");
+});
+
 // Обработка бонуса
 async function handleBonus(chatId, text) {
   if (!bonusOptions.includes(text)) {
@@ -663,7 +668,8 @@ bot.onText(/\/survey/, async (msg) => {
       "⛔ Подождите минуту перед повторным запуском опроса."
     );
   }
-  userState[chatId] = {};
+
+  userState[chatId] = { step: 1 }; // Начинаем опрос
   await bot.sendMessage(
     chatId,
     "📆 Введите дату мероприятия (например, 15 января)"
