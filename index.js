@@ -175,7 +175,7 @@ bot.on("message", async (msg) => {
           one_time_keyboard: true,
         },
       });
-      break;
+    break;
 
     case 2:
       if (!eventOptions.includes(text)) {
@@ -304,41 +304,15 @@ bot.on("message", async (msg) => {
       state.bonus = text;
       state.step++;
 
-      await bot.sendMessage(
+      let keyboard = types.InlineKeyboardMarkup()
+      let url_button = types.InlineKeyboardButton(text="Свяжите меня с человеком", url="t.me/yuriy_vel")
+      keyboard.add(url_button)
+
+    await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-        {
-          reply_markup: msg.chat.username
-            ? {
-                inline_keyboard: [
-                  [
-                    {
-                      text: "Свяжите меня с человеком",
-                      callback_data: "contact_me",
-                    },
-                  ],
-                  [
-                    {
-                      text: "Интересные пакетные предложения",
-                      callback_data: "package_offers",
-                    },
-                  ],
-                ],
-              }
-            : {
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      {
-                        text: "Свяжитесь с нами",
-                        url: "t.me/yuriy_vel",
-                      },
-                    ],
-                  ],
-                },
-              },
-        }
-      );
+        { reply_markup: keyboard }
+    );
       await sendAdminSummary(msg);
       break;
 
@@ -367,35 +341,17 @@ bot.on("message", async (msg) => {
       }
 
       await bot.sendMessage(chatId, "🔹 Узнать больше:", {
-        reply_markup: msg.chat.username
-          ? {
-              inline_keyboard: [
-                [
-                  {
-                    text: "Свяжите меня с человеком",
-                    callback_data: "contact_me",
-                  },
-                ],
-                [
-                  {
-                    text: "Другие пакетные предложения",
-                    callback_data: "package_offers",
-                  },
-                ],
-              ],
-            }
-          : {
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    {
-                      text: "Свяжитесь с нами",
-                      url: "t.me/yuriy_vel",
-                    },
-                  ],
-                ],
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+            [
+              {
+                text: "Другие пакетные предложения",
+                callback_data: "package_offers",
               },
-            },
+            ],
+          ],
+        },
       });
       break;
   }
@@ -567,7 +523,7 @@ async function sendAdminSummary(msg) {
 
   const summaryMessage = `
 📩 *Новый опрос*\n
-👤 *Пользователь*: @${msg.chat.username ?? "Неизвестно"}\n
+👤 *Пользователь*: @${msg.chat.username??'Неизвестно'}\n
 📅 *Дата*: ${state.date}\n
 🎉 *Событие*: ${state.event}\n
 👥 *Гости*: ${state.guestCount}\n
