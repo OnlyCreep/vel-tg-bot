@@ -4,7 +4,7 @@ moment.locale("ru");
 
 // Укажите ваш токен
 const TOKEN = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
-const ADMIN_CHAT_ID = -4715412192;
+const ADMIN_CHAT_ID = -4701713936;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
@@ -546,7 +546,7 @@ bot.on("contact", async (msg) => {
   // Пересылаем контакт админу
   await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
 
-  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен админу.");
+  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен.");
 });
 
 // Обработка бонуса
