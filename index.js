@@ -140,8 +140,14 @@ bot.on("message", async (msg) => {
     }
     userState[chatId].phone = msg.contact.phone_number; // Сохраняем телефон
     userState[chatId].name = msg.contact.first_name; // Сохраняем имя
+
+    // Пересылаем контакт админу
+    await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
+    await bot.sendMessage(chatId, "✅ Контакт успешно отправлен админу.");
+    return;
   }
 
+  if (!msg.text) return; // Добавил проверку, чтобы избежать ошибки trim()
   const text = msg.text.trim();
   if (text.startsWith("/")) return;
 
@@ -237,7 +243,9 @@ bot.on("message", async (msg) => {
       }
 
       state.hours = hours;
+      state.totalPrice = (state.baseRate || 15000) * state.hours; // Исправил расчет totalPrice
       state.step++;
+
       await bot.sendMessage(
         chatId,
         "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
@@ -469,10 +477,10 @@ async function askImageChoice(chatId) {
 
 async function handleImageChoice(chatId, text) {
   const imageOptions = {
-    "Девушка с аксессуарами(первая картинка слева)": "первая картинка слева",
-    "Уютная спальня(верхняя справа)": "верхняя справа",
-    "Зелёные листья(по центру справа)": "по центру справа",
-    "Женщина с украшениями(нижняя справа)": "нижняя справа",
+    "Девушка с аксессуарами": "первая картинка слева",
+    "Уютная спальня": "верхняя справа",
+    "Зелёные листья": "по центру справа",
+    "Женщина с украшениями": "нижняя справа",
   };
 
   if (!imageOptions.hasOwnProperty(text)) {
@@ -572,6 +580,26 @@ async function sendAdminSummary(msg) {
     parse_mode: "Markdown",
   });
 }
+
+bot.on("callback_query", async (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const data = callbackQuery.data;
+
+  if (data === "package_offers") {
+    await bot.sendMessage(
+      chatId,
+      "🎁 Вот наши пакетные предложения:\n\n1️⃣ *Стандартный пакет*: Включает ведущего, DJ и базовое оборудование.\n\n2️⃣ *Премиум пакет*: Включает ведущего, DJ, световое шоу и фотографа.\n\n3️⃣ *VIP пакет*: Включает ведущего, DJ, живую музыку, фото и видеосъемку.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
+          ],
+        },
+      }
+    );
+  }
+});
 
 bot.on("callback_query", async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
