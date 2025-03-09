@@ -238,9 +238,10 @@ bot.on("message", async (msg) => {
       }
 
       state.location = text;
+      state.prig = 0;
 
       if (text === "Пригород (до 30 км)") {
-        state.totalPrice += 5000; // Добавляем фиксированную сумму
+        state.prig = 5000; // Добавляем фиксированную сумму
       } else if (text === "Другое") {
         state.totalPrice *= 1.5; // Умножаем на коэффициент
       }
@@ -328,7 +329,9 @@ bot.on("message", async (msg) => {
 
       await bot.sendMessage(
         chatId,
-        `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nОкончательная смета после согласования.`,
+        `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${
+          state.totalPrice + state.prig
+        }₽\nОкончательная смета после согласования.`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -403,59 +406,6 @@ function getBaseRate(day, monthInput) {
   return weekday < 5
     ? seasonRates[month]["вс-чт"]
     : seasonRates[month]["пт-сб"];
-}
-
-// Обработка бюджета
-async function askBudget(chatId) {
-  userState[chatId].step = 6;
-  await bot.sendMessage(
-    chatId,
-    "💰 Какая стоимость кажется адекватной заданным параметрам и ТЗ? (тыс.₽)",
-    {
-      reply_markup: {
-        keyboard: budgetOptions.map((e) => [e]),
-        one_time_keyboard: true,
-      },
-    }
-  );
-}
-
-// Обработка выбора бюджета
-async function handleBudget(chatId, text) {
-  if (!budgetOptions.includes(text)) {
-    return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
-  }
-  userState[chatId].budget = text;
-  await askThreeWords(chatId);
-}
-
-// Вопрос о трех словах
-async function askThreeWords(chatId) {
-  userState[chatId].step = 7;
-  await bot.sendMessage(
-    chatId,
-    "🔮 Какими 3 словами вы бы хотели запомнить мероприятие?",
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Пропустить", callback_data: "skip_words" }],
-        ],
-      },
-    }
-  );
-}
-
-// Обработка трех слов
-async function handleThreeWords(chatId, text) {
-  const words = text.split(/\s+/);
-  if (words.length !== 3) {
-    return bot.sendMessage(
-      chatId,
-      "❗ Введите ровно три слова, разделенные пробелом."
-    );
-  }
-  userState[chatId].threeWords = text;
-  await askImageChoice(chatId);
 }
 
 // Выбор картинки
@@ -600,7 +550,7 @@ async function sendAdminSummary(msg) {
 🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
 🖼 *Выбранный стиль*: ${state.imageChoice}\n
 🎁 *Выбранный бонус*: ${state.bonus}\n
-💵 *Итоговая стоимость*: ${state.totalPrice}₽
+💵 *Итоговая стоимость*: ${state.totalPrice + state.prig}₽
 `;
 
   await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
@@ -618,37 +568,29 @@ bot.on("callback_query", async (callbackQuery) => {
 });
 
 bot.on("callback_query", async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
+  try {
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
 
-  if (data === "contact_me") {
-    if (userState[chatId]?.contactRequested) {
-      return bot.answerCallbackQuery(callbackQuery.id, {
-        text: "Вы уже отправили запрос, ожидайте ответа.",
-        show_alert: true,
-      });
+    if (!userState[chatId]) {
+      userState[chatId] = { step: 0 };
     }
 
-    let contactInfo = await checkUserContact(chatId);
+    if (data === "contact_me") {
+      if (!userState[chatId].phone) {
+        await askForContact(chatId);
+        return;
+      }
 
-    if (!userState[chatId].phone) {
-      await askForContact(chatId);
-      return;
+      userState[chatId].contactRequested = true;
+      await bot.sendMessage(
+        ADMIN_CHAT_ID,
+        `📩 Новая заявка от пользователя ${chatId}`
+      );
+      await bot.sendMessage(chatId, "Ваш запрос отправлен!");
     }
-
-    contactInfo += `, 📞 Телефон: ${userState[chatId].phone}`;
-
-    userState[chatId].contactRequested = true;
-
-    await bot.sendMessage(
-      ADMIN_CHAT_ID,
-      `📩 Новая заявка!\n👤 Пользователь: ${contactInfo}\n💬 Нажал кнопку "Свяжите меня с человеком".`
-    );
-
-    await bot.sendMessage(
-      chatId,
-      "Ваш запрос отправлен. Мы скоро с вами свяжемся!"
-    );
+  } catch (error) {
+    console.error("Ошибка в обработке callback_query:", error);
   }
 });
 
