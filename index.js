@@ -413,45 +413,58 @@ async function askImageChoice(chatId) {
   userState[chatId].step = 8;
 
   const images = [
-    {
-      url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
-      caption: "Девушка с синими аксессуарами (первая картинка слева)",
-      title: "Девушка с аксессуарами",
-    },
-    {
-      url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
-      caption: "Уютная спальня с жёлтыми шторами (верхняя справа)",
-      title: "Уютная спальня",
-    },
-    {
-      url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
-      caption: "Зелёные листья вблизи (по центру справа)",
-      title: "Зелёные листья",
-    },
-    {
-      url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png",
-      caption: "Женщина в роскошном образе с украшениями (нижняя справа)",
-      title: "Женщина с украшениями",
-    },
+      {
+          url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_4_vel-e1740539781897.png",
+          caption: "Девушка с синими аксессуарами (первая картинка слева)",
+          title: "Девушка с аксессуарами (первая картинка слева)",
+      },
+      {
+          url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_3_vel-e1740539861115.png",
+          caption: "Уютная спальня с жёлтыми шторами (верхняя справа)",
+          title: "Уютная спальня (верхняя справа)",
+      },
+      {
+          url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_2_vel-e1740539841526.png",
+          caption: "Зелёные листья вблизи (по центру справа)",
+          title: "Зелёные листья (по центру справа)",
+      },
+      {
+          url: "https://vel-agency.sps.center/wp-content/uploads/2024/10/card_quiz_1_vel.png",
+          caption: "Женщина в роскошном образе с украшениями (нижняя справа)",
+          title: "Женщина с украшениями (нижняя справа)",
+      },
   ];
 
-  // Отправляем все изображения как медиагруппу
-  const mediaGroup = images.map((img) => ({
-    type: "photo",
-    media: img.url,
-    caption: img.caption,
-    parse_mode: "Markdown",
-  }));
+  try {
+      console.log("⏳ Отправка медиа-группы...");
 
-  await bot.sendMediaGroup(chatId, mediaGroup);
+      // Добавляем небольшую задержку перед отправкой
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Создаем кнопки для выбора
-  await bot.sendMessage(chatId, "Выберите картинку, которая вам нравится:", {
-    reply_markup: {
-      keyboard: images.map((img) => [img.title]), // Создаем кнопки с названиями картинок
-      one_time_keyboard: true,
-    },
-  });
+      // Отправляем все изображения как медиагруппу
+      await bot.sendMediaGroup(chatId, images.map(img => ({
+          type: "photo",
+          media: img.url,
+          caption: img.caption,
+          parse_mode: "Markdown",
+      })));
+
+      console.log("✅ Медиа-группа успешно отправлена!");
+
+      // Ждем 1 секунду перед отправкой клавиатуры
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await bot.sendMessage(chatId, "Выберите картинку, которая вам нравится:", {
+          reply_markup: {
+              keyboard: images.map(img => [img.title]), // Кнопки с названиями картинок
+              one_time_keyboard: true,
+              resize_keyboard: true,
+          },
+      });
+  } catch (error) {
+      console.error("❌ Ошибка при отправке медиа-группы:", error);
+      await bot.sendMessage(chatId, "⚠️ Произошла ошибка при загрузке изображений. Попробуйте снова.");
+  }
 }
 
 async function handleImageChoice(chatId, text) {
