@@ -104,27 +104,12 @@ bot.on("callback_query", async (callbackQuery) => {
     userState[chatId] = { step: 0 };
   }
 
-  if (data === "skip_words" && userState[chatId].step === 6) {
+  if (data === "skip_words" && userState[chatId].step === 7) {
     userState[chatId].threeWords = "Пропущено";
     userState[chatId].step++;
     await askImageChoice(chatId);
   }
 });
-
-const monthNames = {
-  января: "январь",
-  февраля: "февраль",
-  марта: "март",
-  апреля: "апрель",
-  мая: "май",
-  июня: "июнь",
-  июля: "июль",
-  августа: "август",
-  сентября: "сентябрь",
-  октября: "октябрь",
-  ноября: "ноябрь",
-  декабря: "декабрь",
-};
 
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
@@ -684,56 +669,4 @@ async function askForContact(chatId) {
       },
     }
   );
-}
-
-async function checkUserContact(chatId) {
-  try {
-    const user = await bot.getChat(chatId);
-
-    let contactInfo = "";
-
-    if (user.username) {
-      contactInfo = `@${user.username}`;
-    } else if (user.first_name) {
-      contactInfo = `${user.first_name} ${user.last_name || ""}`.trim();
-    } else {
-      contactInfo = "Неизвестный пользователь";
-    }
-
-    return contactInfo;
-  } catch (error) {
-    console.error("Ошибка получения данных пользователя:", error);
-    return "Ошибка получения данных";
-  }
-}
-
-function getSeasonRate(day, monthInput) {
-  const monthNames = {
-    январь: "январь",
-    февраль: "февраль",
-    март: "март",
-    апрель: "апрель",
-    май: "май",
-    июнь: "июнь",
-    июль: "июль",
-    август: "август",
-    сентябрь: "сентябрь",
-    октябрь: "октябрь",
-    ноябрь: "ноябрь",
-    декабрь: "декабрь",
-  };
-
-  const month = monthInput.toLowerCase();
-  if (!monthNames[month]) return null;
-
-  if (month === "декабрь") {
-    return day < 15 ? seasonRates[month]["до 14"] : seasonRates[month]["с 15"];
-  }
-
-  const dateString = `${day} ${month} 2024`; // Добавляем год для корректной проверки дня недели
-  const weekday = moment(dateString, "D MMMM YYYY").isoWeekday();
-
-  return weekday < 5
-    ? seasonRates[month]["вс-чт"]
-    : seasonRates[month]["пт-сб"];
 }
