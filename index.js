@@ -527,7 +527,10 @@ async function askBonus(chatId) {
   userState[chatId].step = 9;
   await bot.sendMessage(
     chatId,
-    "🎁 Люблю делать подарки! Выберите один из бонусов:",
+    `Люблю делать подарки, поэтому в случае бронирования даты в течение суток, можно выбрать🎁:\n
+    1). Дополнительный час работы диджея;\n
+    2). 1.5 часа работы фотографа;\n
+    3). 1.5 часа работы рилсмейкера (вертикальные видео).`,
     {
       reply_markup: {
         keyboard: bonusOptions.map((e) => [e]),
@@ -654,7 +657,11 @@ bot.on("callback_query", async (callbackQuery) => {
 
 // Выбор пакетных предложений
 async function askPackageOffer(chatId) {
+  if (!userState[chatId]) {
+    userState[chatId] = {}; // Инициализируем состояние, если его нет
+  }
   userState[chatId].step = 10;
+
   await bot.sendMessage(
     chatId,
     "Выберите интересующее вас пакетное предложение:",
@@ -670,38 +677,6 @@ async function askPackageOffer(chatId) {
       },
     }
   );
-}
-
-// Обработка выбора пакета
-async function handlePackageChoice(chatId, text) {
-  const packageImages = {
-    Корпоратив: ["./images/corporate1.jpg"],
-    Выпускной: ["./images/graduation1.jpg", "./images/graduation2.jpg"],
-    "День рождения": ["./images/birthday1.jpg"],
-    Свадьба: ["./images/wedding1.jpg", "./images/wedding2.jpg"],
-  };
-
-  if (!packageImages[text]) {
-    return bot.sendMessage(chatId, "Выберите один из предложенных вариантов.");
-  }
-
-  for (const image of packageImages[text]) {
-    await bot.sendPhoto(chatId, image);
-  }
-
-  await bot.sendMessage(chatId, "🔹 Узнать больше:", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-        [
-          {
-            text: "Другие пакетные предложения",
-            callback_data: "package_offers",
-          },
-        ],
-      ],
-    },
-  });
 }
 
 function isRateLimited(chatId) {
