@@ -506,31 +506,48 @@ async function askBonus(chatId) {
   );
 }
 
-// Обработка получения контакта
+const contactSentUsers = new Set(); // Храним пользователей, уже отправивших контакт
+const rateLimitContacts = {}; // Храним таймстамп последней отправки контакта
+
 bot.on("contact", async (msg) => {
-  const chatId = msg.chat.id;
+    const chatId = msg.chat.id;
+    const now = Date.now();
 
-  if (!userState[chatId]) {
-    userState[chatId] = {};
-  }
+    if (!userState[chatId]) {
+        userState[chatId] = {};
+    }
 
-  userState[chatId].phone = msg.contact.phone_number;
-  userState[chatId].name = msg.contact.first_name;
+    // 1. Проверка: уже отправил контакт?
+    if (contactSentUsers.has(chatId)) {
+        await bot.sendMessage(chatId, "⛔ Вы уже отправили свой контакт.");
+        return;
+    }
 
-  try {
-    // Пересылаем сообщение с контактом админу
-    await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
+    // 2. Проверка: частые попытки (30 сек защита)
+    if (rateLimitContacts[chatId] && now - rateLimitContacts[chatId] < 30000) {
+        return; // Просто игнорируем, без лишних сообщений
+    }
 
-    // Уведомляем пользователя, что контакт успешно отправлен
-    await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
-  } catch (error) {
-    console.error("❌ Ошибка при пересылке контакта:", error);
-    await bot.sendMessage(
-      chatId,
-      "⚠️ Ошибка при отправке контакта. Попробуйте снова."
-    );
-  }
+    // Запоминаем контакт пользователя
+    userState[chatId].phone = msg.contact.phone_number;
+    userState[chatId].name = msg.contact.first_name;
+
+    try {
+        // 3. Фиксируем, что контакт отправлен
+        contactSentUsers.add(chatId);
+        rateLimitContacts[chatId] = now;
+
+        // 4. Пересылаем контакт админу
+        await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
+
+        // 5. Подтверждаем пользователю без лишнего текста
+        await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
+    } catch (error) {
+        console.error("❌ Ошибка при отправке контакта:", error);
+        await bot.sendMessage(chatId, "⚠️ Ошибка при отправке контакта. Попробуйте снова.");
+    }
 });
+
 
 async function sendAdminSummary(msg) {
   const state = userState[msg.chat.id];
