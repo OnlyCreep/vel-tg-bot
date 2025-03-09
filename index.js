@@ -509,67 +509,45 @@ async function askBonus(chatId) {
 // Обработка получения контакта
 bot.on("contact", async (msg) => {
   const chatId = msg.chat.id;
+
+  if (!userState[chatId]) {
+    userState[chatId] = {};
+  }
+
   userState[chatId].phone = msg.contact.phone_number;
   userState[chatId].name = msg.contact.first_name;
 
-  // Пересылаем контакт админу
-  await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
-
-  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен.");
-});
-
-// Обработка бонуса
-async function handleBonus(chatId, text) {
-  if (!bonusOptions.includes(text)) {
-    return bot.sendMessage(chatId, "Выберите один из предложенных бонусов.");
-  }
-
-  const state = userState[chatId];
-  state.bonus = text;
-
-  // Проверяем, что `totalPrice` корректно вычислен перед отправкой
-  if (!state.totalPrice) {
-    state.totalPrice = (state.baseRate || 15000) * (state.hours || 1);
-  }
-
   await bot.sendMessage(
-    chatId,
-    `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${state.totalPrice}₽\nЯ старался сэкономить наши время и нервы, поэтому стоимость максимально приближенная и все-таки ориентировочная. Окончательная смета после встречи и согласования программы.`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Свяжите меня с человеком", callback_data: "contact_me" }],
-          [
-            {
-              text: "Интересные пакетные предложения",
-              callback_data: "package_offers",
-            },
-          ],
-        ],
-      },
-    }
+    ADMIN_CHAT_ID,
+    `📞 Новый контакт: ${userState[chatId].name} (${userState[chatId].phone})`
   );
 
-  await sendAdminSummary(chatId);
-}
+  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен!");
+});
 
-// Отправка результатов админу
 async function sendAdminSummary(msg) {
   const state = userState[msg.chat.id];
+
+  if (!state) {
+    console.error("⚠️ Ошибка: состояние пользователя отсутствует!");
+    return;
+  }
 
   const summaryMessage = `
 📩 *Новый опрос*\n
 👤 *Пользователь*: @${msg.chat.username ?? "Неизвестно"}\n
-📅 *Дата*: ${state.date}\n
-🎉 *Событие*: ${state.event}\n
-👥 *Гости*: ${state.guestCount}\n
-📍 *Локация*: ${state.location}\n
-⏳ *Длительность*: ${state.hours} ч.\n
-💰 *Ожидания по бюджету*: ${state.budget} тыс. ₽\n
+📅 *Дата*: ${state.date || "Не указана"}\n
+🎉 *Событие*: ${state.event || "Не указано"}\n
+👥 *Гости*: ${state.guestCount || "Не указано"}\n
+📍 *Локация*: ${state.location || "Не указана"}\n
+⏳ *Длительность*: ${state.hours || "Не указано"} ч.\n
+💰 *Ожидания по бюджету*: ${state.budget || "Не указано"} тыс. ₽\n
 🔮 *3 слова про мероприятие*: ${state.threeWords || "Пропущено"}\n
-🖼 *Выбранный стиль*: ${state.imageChoice}\n
-🎁 *Выбранный бонус*: ${state.bonus}\n
-💵 *Итоговая стоимость*: ${state.totalPrice + state.prig}₽
+🖼 *Выбранный стиль*: ${state.imageChoice || "Не выбрано"}\n
+🎁 *Выбранный бонус*: ${state.bonus || "Не выбран"}\n
+💵 *Итоговая стоимость*: ${
+    state.totalPrice ? state.totalPrice + (state.prig || 0) : "Ошибка расчета"
+  }₽
 `;
 
   await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
@@ -602,14 +580,25 @@ bot.on("callback_query", async (callbackQuery) => {
       }
 
       userState[chatId].contactRequested = true;
-      await bot.sendMessage(
-        ADMIN_CHAT_ID,
-        `📩 Новая заявка от пользователя ${chatId}`
-      );
-      await bot.sendMessage(chatId, "Ваш запрос отправлен!");
+
+      // Убедимся, что перед отправкой заявки все данные сохранены
+      await sendAdminSummary({
+        chat: {
+          id: chatId,
+          username: callbackQuery.from.username || "Неизвестный",
+        },
+      });
+
+      await bot.sendMessage(chatId, "✅ Ваш запрос отправлен!");
+    } else if (data === "package_offers") {
+      await askPackageOffer(chatId);
     }
   } catch (error) {
     console.error("Ошибка в обработке callback_query:", error);
+    await bot.sendMessage(
+      callbackQuery.message.chat.id,
+      "❌ Ошибка обработки запроса."
+    );
   }
 });
 
@@ -665,17 +654,10 @@ bot.onText(/\/survey/, async (msg) => {
 async function askForContact(chatId) {
   await bot.sendMessage(
     chatId,
-    "Пожалуйста, отправьте свой контакт, нажав на кнопку ниже:",
+    "📞 Отправьте ваш контакт, нажав на кнопку ниже:",
     {
       reply_markup: {
-        keyboard: [
-          [
-            {
-              text: "Отправить мой номер 📞",
-              request_contact: true,
-            },
-          ],
-        ],
+        keyboard: [[{ text: "Отправить мой номер 📞", request_contact: true }]],
         one_time_keyboard: true,
         resize_keyboard: true,
       },
