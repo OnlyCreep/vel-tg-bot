@@ -517,12 +517,19 @@ bot.on("contact", async (msg) => {
   userState[chatId].phone = msg.contact.phone_number;
   userState[chatId].name = msg.contact.first_name;
 
-  await bot.sendMessage(
-    ADMIN_CHAT_ID,
-    `📞 Новый контакт: ${userState[chatId].name} (${userState[chatId].phone})`
-  );
+  try {
+    // Пересылаем сообщение с контактом админу
+    await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
 
-  await bot.sendMessage(chatId, "✅ Контакт успешно отправлен!");
+    // Уведомляем пользователя, что контакт успешно отправлен
+    await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
+  } catch (error) {
+    console.error("❌ Ошибка при пересылке контакта:", error);
+    await bot.sendMessage(
+      chatId,
+      "⚠️ Ошибка при отправке контакта. Попробуйте снова."
+    );
+  }
 });
 
 async function sendAdminSummary(msg) {
@@ -554,15 +561,6 @@ async function sendAdminSummary(msg) {
     parse_mode: "Markdown",
   });
 }
-
-bot.on("callback_query", async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
-
-  if (data === "package_offers") {
-    await askPackageOffer(chatId);
-  }
-});
 
 bot.on("callback_query", async (callbackQuery) => {
   try {
