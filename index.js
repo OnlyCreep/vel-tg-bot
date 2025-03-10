@@ -582,6 +582,10 @@ async function sendAdminSummary(msg) {
     state.totalPrice ? state.totalPrice + (state.prig || 0) : "Ошибка расчета"
   }₽
 `;
+
+  await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
+    parse_mode: "Markdown",
+  });
 }
 
 const contactRequests = {}; // Храним время последнего запроса на контакт
@@ -599,10 +603,7 @@ bot.on("callback_query", async (callbackQuery) => {
     if (data === "contact_me") {
       // Защита от спама (разрешаем кликать не чаще 1 раза в 30 секунд)
       if (contactRequests[chatId] && now - contactRequests[chatId] < 30000) {
-        await bot.sendMessage(
-          chatId,
-          "⛔ Подождите 30 секунд перед повторной отправкой запроса."
-        );
+        await bot.sendMessage(chatId, "⛔ Подождите 30 секунд перед повторной отправкой запроса.");
         return;
       }
 
@@ -624,13 +625,15 @@ bot.on("callback_query", async (callbackQuery) => {
       });
 
       await bot.sendMessage(chatId, "✅ Ваш запрос отправлен!");
+    } 
+    
+    // ✅ ФИКС: обработка кнопки "Интересные пакетные предложения"
+    else if (data === "package_offers") {
+      await askPackageOffer(chatId);
     }
   } catch (error) {
     console.error("Ошибка в обработке callback_query:", error);
-    await bot.sendMessage(
-      callbackQuery.message.chat.id,
-      "❌ Ошибка обработки запроса."
-    );
+    await bot.sendMessage(callbackQuery.message.chat.id, "❌ Ошибка обработки запроса.");
   }
 });
 
@@ -668,6 +671,29 @@ async function askForContact(chatId) {
         keyboard: [[{ text: "Отправить мой номер 📞", request_contact: true }]],
         one_time_keyboard: true,
         resize_keyboard: true,
+      },
+    }
+  );
+}
+
+async function askPackageOffer(chatId) {
+  if (!userState[chatId]) {
+    userState[chatId] = {}; // Инициализируем состояние, если его нет
+  }
+  userState[chatId].step = 10;
+
+  await bot.sendMessage(
+    chatId,
+    "Выберите интересующее вас пакетное предложение:",
+    {
+      reply_markup: {
+        keyboard: [
+          ["Корпоратив"],
+          ["Выпускной"],
+          ["День рождения"],
+          ["Свадьба"],
+        ],
+        one_time_keyboard: true,
       },
     }
   );
