@@ -354,7 +354,6 @@ bot.on("message", async (msg) => {
           },
         }
       );
-      await sendAdminSummary(msg);
       break;
 
     case 10:
@@ -536,16 +535,7 @@ bot.on("contact", async (msg) => {
 
     // Пересылаем контакт админу
     await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
-
-    // После отправки контакта админу, сразу пересылаем результаты опроса
-    if (userState[chatId].contactRequested) {
-      await sendAdminSummary({
-        chat: {
-          id: chatId,
-          username: msg.chat.username || "Неизвестный",
-        },
-      });
-    }
+    await sendAdminSummary(msg);
 
     await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
   } catch (error) {
