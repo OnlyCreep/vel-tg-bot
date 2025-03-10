@@ -3,7 +3,7 @@ const moment = require("moment");
 moment.locale("ru");
 
 // Укажите ваш токен
-const TOKEN = "7339008763:AAHU4_ZQ1jKwdmOfSMg6WvN0VLW7MNIRHv0";
+const TOKEN = "7425489601:AAGPkXhtPQGm5c6oeL3BtpAkPhyo9oMXsIE";
 const ADMIN_CHAT_ID = -4701713936;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
