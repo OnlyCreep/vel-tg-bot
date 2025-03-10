@@ -8,6 +8,11 @@ const ADMIN_CHAT_ID = -4701713936;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
+bot.telegram.setMyCommands([
+  { command: 'start', description: 'Запустить бота' },
+  { command: 'survey', description: 'Пройти опрос' }
+]);
+
 // Состояния пользователей
 const userState = {};
 const rateLimit = {};
@@ -535,7 +540,6 @@ bot.on("contact", async (msg) => {
 
     // Пересылаем контакт админу
     await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
-    await sendAdminSummary(msg);
 
     await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
   } catch (error) {
