@@ -573,9 +573,7 @@ async function sendAdminSummary(msg) {
   }₽
 `;
 
-  await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
-    parse_mode: "Markdown",
-  });
+  await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage);
 }
 
 const contactRequests = {}; // Храним время последнего запроса на контакт
