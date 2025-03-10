@@ -8,7 +8,7 @@ const ADMIN_CHAT_ID = -4701713936;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
-bot.telegram.setMyCommands([
+bot.setMyCommands([
   { command: 'start', description: 'Запустить бота' },
   { command: 'survey', description: 'Пройти опрос' }
 ]);
