@@ -329,7 +329,7 @@ bot.on("message", async (msg) => {
 
       state.bonus = text;
       state.step++;
-
+      await sendAdminSummary(msg);
       await bot.sendMessage(
         chatId,
         `✅ Ваш бонус учтен! Спасибо за прохождение опроса.\n\n✅ Ваша ориентировочная стоимость: ${
