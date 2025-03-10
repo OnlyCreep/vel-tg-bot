@@ -173,8 +173,6 @@ bot.on("message", async (msg) => {
 
   const state = userState[chatId];
 
-  console.log(`Текущий шаг: ${state.step}, Полученный текст: ${text}`);
-
   switch (state.step) {
     case 1:
       const dateMatch = text.match(/^(\d{1,2})\s([а-яё]+)$/i);
@@ -381,6 +379,7 @@ bot.on("message", async (msg) => {
       for (const image of packageImages[text]) {
         await bot.sendPhoto(chatId, image);
       }
+      await bot.sendMessage(ADMIN_CHAT_ID, `Пользователь ${msg.chat.username ?? "Неизвестно"} выбрал пакетное предложение: ${packageImages[text]}`)
 
       await bot.sendMessage(chatId, "🔹 Узнать больше:", {
         reply_markup: {
