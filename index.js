@@ -379,7 +379,8 @@ bot.on("message", async (msg) => {
       for (const image of packageImages[text]) {
         await bot.sendPhoto(chatId, image);
       }
-      await bot.sendMessage(ADMIN_CHAT_ID, `Пользователь ${msg.chat.username ?? "Неизвестно"} выбрал пакетное предложение: ${packageImages[text]}`)
+      await bot.sendMessage(ADMIN_CHAT_ID, `Пользователь @${msg.chat.username ?? "Неизвестно"} выбрал пакетное предложение: ${packageImages[text]}`)
+      console.log(msg)
 
       await bot.sendMessage(chatId, "🔹 Узнать больше:", {
         reply_markup: {
