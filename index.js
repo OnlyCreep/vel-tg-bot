@@ -68,7 +68,21 @@ const bonusOptions = [
 // Команда /start
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  userState[chatId] = { step: 1, totalPrice: 15000 };
+
+  try {
+    // Очищаем все данные пользователя
+    delete userState[chatId];
+    delete rateLimit[chatId];
+    contactSentUsers.delete(chatId);
+    delete rateLimitContacts[chatId];
+
+    console.log(`✅ Данные пользователя ${chatId} успешно удалены.`);
+  } catch (error) {
+    console.error(
+      `❌ Ошибка при очистке данных пользователя ${chatId}:`,
+      error
+    );
+  }
 
   await bot.sendMessage(
     chatId,
@@ -506,15 +520,9 @@ bot.on("contact", async (msg) => {
     userState[chatId] = {};
   }
 
-  // 1. Проверка: уже отправил контакт?
-  if (contactSentUsers.has(chatId)) {
-    await bot.sendMessage(chatId, "⛔ Вы уже отправили свой контакт.");
-    return;
-  }
-
-  // 2. Проверка: частые попытки (30 сек защита)
+  // Проверка, чтобы не спамили контактами (30 сек защита)
   if (rateLimitContacts[chatId] && now - rateLimitContacts[chatId] < 30000) {
-    return; // Просто игнорируем, без лишних сообщений
+    return;
   }
 
   // Запоминаем контакт пользователя
@@ -522,14 +530,23 @@ bot.on("contact", async (msg) => {
   userState[chatId].name = msg.contact.first_name;
 
   try {
-    // 3. Фиксируем, что контакт отправлен
+    // Фиксируем, что контакт отправлен
     contactSentUsers.add(chatId);
     rateLimitContacts[chatId] = now;
 
-    // 4. Пересылаем контакт админу
+    // Пересылаем контакт админу
     await bot.forwardMessage(ADMIN_CHAT_ID, chatId, msg.message_id);
 
-    // 5. Подтверждаем пользователю без лишнего текста
+    // После отправки контакта админу, сразу пересылаем результаты опроса
+    if (userState[chatId].contactRequested) {
+      await sendAdminSummary({
+        chat: {
+          id: chatId,
+          username: msg.chat.username || "Неизвестный",
+        },
+      });
+    }
+
     await bot.sendMessage(chatId, "✅ Ваш контакт успешно отправлен!");
   } catch (error) {
     console.error("❌ Ошибка при отправке контакта:", error);
@@ -549,8 +566,9 @@ async function sendAdminSummary(msg) {
   }
 
   const summaryMessage = `
-📩 *Новый опрос*\n
+📩 *Новый запрос на связь!*\n
 👤 *Пользователь*: @${msg.chat.username ?? "Неизвестно"}\n
+📞 *Телефон*: ${state.phone || "Не указан"}\n
 📅 *Дата*: ${state.date || "Не указана"}\n
 🎉 *Событие*: ${state.event || "Не указано"}\n
 👥 *Гости*: ${state.guestCount || "Не указано"}\n
@@ -564,22 +582,32 @@ async function sendAdminSummary(msg) {
     state.totalPrice ? state.totalPrice + (state.prig || 0) : "Ошибка расчета"
   }₽
 `;
-
-  await bot.sendMessage(ADMIN_CHAT_ID, summaryMessage, {
-    parse_mode: "Markdown",
-  });
 }
+
+const contactRequests = {}; // Храним время последнего запроса на контакт
 
 bot.on("callback_query", async (callbackQuery) => {
   try {
     const chatId = callbackQuery.message.chat.id;
     const data = callbackQuery.data;
+    const now = Date.now();
 
     if (!userState[chatId]) {
       userState[chatId] = { step: 0 };
     }
 
     if (data === "contact_me") {
+      // Защита от спама (разрешаем кликать не чаще 1 раза в 30 секунд)
+      if (contactRequests[chatId] && now - contactRequests[chatId] < 30000) {
+        await bot.sendMessage(
+          chatId,
+          "⛔ Подождите 30 секунд перед повторной отправкой запроса."
+        );
+        return;
+      }
+
+      contactRequests[chatId] = now; // Фиксируем время последнего запроса
+
       if (!userState[chatId].phone) {
         await askForContact(chatId);
         return;
@@ -587,7 +615,7 @@ bot.on("callback_query", async (callbackQuery) => {
 
       userState[chatId].contactRequested = true;
 
-      // Убедимся, что перед отправкой заявки все данные сохранены
+      // Отправляем админу опросные данные + контакт пользователя
       await sendAdminSummary({
         chat: {
           id: chatId,
@@ -596,8 +624,6 @@ bot.on("callback_query", async (callbackQuery) => {
       });
 
       await bot.sendMessage(chatId, "✅ Ваш запрос отправлен!");
-    } else if (data === "package_offers") {
-      await askPackageOffer(chatId);
     }
   } catch (error) {
     console.error("Ошибка в обработке callback_query:", error);
@@ -607,30 +633,6 @@ bot.on("callback_query", async (callbackQuery) => {
     );
   }
 });
-
-// Выбор пакетных предложений
-async function askPackageOffer(chatId) {
-  if (!userState[chatId]) {
-    userState[chatId] = {}; // Инициализируем состояние, если его нет
-  }
-  userState[chatId].step = 10;
-
-  await bot.sendMessage(
-    chatId,
-    "Выберите интересующее вас пакетное предложение:",
-    {
-      reply_markup: {
-        keyboard: [
-          ["Корпоратив"],
-          ["Выпускной"],
-          ["День рождения"],
-          ["Свадьба"],
-        ],
-        one_time_keyboard: true,
-      },
-    }
-  );
-}
 
 function isRateLimited(chatId) {
   const now = Date.now();
