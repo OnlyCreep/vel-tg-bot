@@ -4,7 +4,7 @@ moment.locale("ru");
 
 // Укажите ваш токен
 const TOKEN = "7425489601:AAGPkXhtPQGm5c6oeL3BtpAkPhyo9oMXsIE";
-const ADMIN_CHAT_ID = -4701713936;
+const ADMIN_CHAT_ID = -1002570665841;
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
